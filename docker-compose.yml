@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  arangodb:
+    image: arangodb:latest
+    ports:
+      - "8529:8529"
+    environment:
+      - ARANGO_ROOT_PASSWORD=${ARANGO_ROOT_PASSWORD}
+    volumes:
+      - ${ARANGO_DATA_DIR}:/var/lib/arangodb3
+  test:
+    build: env
