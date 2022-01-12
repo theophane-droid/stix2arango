@@ -1,5 +1,5 @@
 import sys, os
-from stix2 import IPv4Address, AutonomousSystem, Identity, Relationship
+from stix2 import IPv4Address, AutonomousSystem, Identity, Relationship, Incident
 from pyArango.connection import *
 from pyArango.theExceptions import CreationError
 
@@ -8,7 +8,7 @@ sys.path.append('/app/src')
 sys.path.append('/app/test')
 
 from feed import Feed
-from storage import GROUPED
+from storage import GROUPED, GROUPED_BY_MONTH
 
 def get_database():
     password = os.environ['ARANGO_ROOT_PASSWORD']
@@ -39,3 +39,10 @@ if __name__ == "__main__":
 
     feed = Feed(db_conn, 'groupedfeed', tags={'paynoattention'}, storage_paradigm=GROUPED)
     feed.insert_stix_object_in_arango([ipv4, autonomous_system, identity, relation])
+
+    # test with grouped-by-month paradigm
+    feed = Feed(db_conn, 'grouped_by_month_feed', tags={'paynoattention'}, storage_paradigm=GROUPED_BY_MONTH)
+    identity = Identity(name='My dog', identity_class='individual')
+    course_of_action = Incident(name='INC 1078', description='My dog barked on neighbors')
+    relation = Relationship(source_ref=course_of_action.id, target_ref=identity.id, relationship_type='attributed-to')
+    feed.insert_stix_object_in_arango([identity, course_of_action, relation])
