@@ -1,3 +1,3 @@
-from .version import __version__
+from .version import __version__, __author__
 
-print('stix2arango version: ' + __version__)
+print('stix2arango by theophanedroid v{}'.format(__version__))
