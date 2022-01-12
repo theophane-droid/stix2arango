@@ -8,5 +8,17 @@ services:
       - ARANGO_ROOT_PASSWORD=${ARANGO_ROOT_PASSWORD}
     volumes:
       - ${ARANGO_DATA_DIR}:/var/lib/arangodb3
+    networks:
+      - stix2arango
   test:
     build: env
+    volumes:
+      - .:/app
+    environment:
+      - ARANGO_ROOT_PASSWORD=${ARANGO_ROOT_PASSWORD}
+    networks:
+      - stix2arango
+
+networks:
+  stix2arango:
+    driver: bridge
