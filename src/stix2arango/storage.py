@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from exceptions import UnknownStorageParadigm
+from stix2arango.exceptions import UnknownStorageParadigm
 
 TIME_BASED = 1 # every insertion, a new collection is created
 GROUPED = 2 # every data inserted goes to the same collection

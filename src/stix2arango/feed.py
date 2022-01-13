@@ -1,8 +1,10 @@
 from pyArango.theExceptions import CreationError
 from datetime import datetime
 
-from storage import TIME_BASED, GROUPED, get_collection_name
-from version import __version__
+from stix2arango.storage import TIME_BASED, GROUPED, get_collection_name
+from stix2arango import stix_modifiers
+from stix2arango.version import __version__
+
 
 class Feed:
     db_conn = None
@@ -25,7 +27,13 @@ class Feed:
         self.storage_paradigm = storage_paradigm
         self.version = __version__
 
+
     def insert_one_object(self, object, colname):
+        if object.type in stix_modifiers:
+            args = dict(object)
+            print(args)
+            object = stix_modifiers[object.type](**args)
+
         if object.type not in self.inserted_stix_types:
             self.inserted_stix_types.append(object.type)
 
@@ -49,12 +57,14 @@ class Feed:
         self.obj_inserted[object['id']] = doc
         return doc
 
+
     def insert_stix_object_in_arango(self, l_object):
         self.save_feed()
         colname = get_collection_name(self)
         for object in l_object:
             self.insert_one_object(object, colname)
         self.insert_edge_in_arango()
+
 
     def insert_edge_in_arango(self):
         colname = 'edge_' + get_collection_name(self)
@@ -71,6 +81,7 @@ class Feed:
             doc.save()
         self.edge_to_insert = []
 
+
     def save_feed(self):
         colname = 'meta_history'
         try:
@@ -82,6 +93,7 @@ class Feed:
         doc.save()
         return doc
     
+
     def __dict__(self):
         return {
             'feed_name': self.feed_name,
@@ -92,8 +104,10 @@ class Feed:
             'inserted_stix_types': self.inserted_stix_types
         }
     
+
     def __str__(self):
         return 'Feed: {}'.format(self.__dict__())
+
 
     def get_last_feeds(db_conn, d_before):
         # get all docs from meta_history collection

@@ -1,8 +1,8 @@
 from pyArango.query import AQLQuery
 
-from feed import Feed
-from storage import get_collection_name
-from stix2.parsing import dict_to_stix2
+from stix2arango.feed import Feed
+from stix2arango.storage import get_collection_name
+
 class Request:
     def __init__(self, db_conn, date):
         self.db_conn = db_conn
@@ -30,7 +30,7 @@ class Request:
             for vertex in vertexes:
                 vertex = vertex.getStore()
                 vertex = self.remove_arango_fields(vertex)
-                vertex = dict_to_stix2(vertex)
+                vertex['x_feed'] = feed.feed_name
                 results.append(self.remove_arango_fields(vertex))
         return results
 

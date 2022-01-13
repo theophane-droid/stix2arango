@@ -1,5 +1,5 @@
 import sys, os
-from stix2 import IPv4Address, AutonomousSystem, Identity, Relationship, Incident
+from stix2 import IPv4Address, AutonomousSystem, Identity, Relationship, Incident, IPv6Address
 from pyArango.connection import *
 from pyArango.theExceptions import CreationError
 
@@ -7,10 +7,10 @@ from pyArango.theExceptions import CreationError
 sys.path.append('/app/src')
 sys.path.append('/app/test')
 
-from feed import Feed
-from request import Request
-from storage import GROUPED, GROUPED_BY_MONTH
-
+from stix2arango.feed import Feed
+from stix2arango.request import Request
+from stix2arango.storage import GROUPED, GROUPED_BY_MONTH, TIME_BASED
+from stix2arango import stix_modifiers
 def get_database():
     password = os.environ['ARANGO_ROOT_PASSWORD']
     db_conn = Connection(username='root', password=password, arangoURL='http://arangodb:8529')
@@ -29,10 +29,12 @@ if __name__ == "__main__":
     ipv4 = IPv4Address(value='97.8.8.8', belongs_to_refs=[autonomous_system.id])
     identity = Identity(name='My grand mother', identity_class='individual')
     relation = Relationship(source_ref=identity.id, target_ref=ipv4.id, relationship_type='attributed-to')
+    ipv4_net = IPv4Address(value='97.8.8.0/24', belongs_to_refs=[autonomous_system.id])
 
+    ipv6 = IPv6Address(value='2001:0db8:85a3:0000:0000:8a2e:0370:7334', belongs_to_refs=[autonomous_system.id])
 
-    feed = Feed(db_conn, 'timefeed', tags=['paynoattention'])
-    feed.insert_stix_object_in_arango([ipv4, autonomous_system, identity, relation])
+    feed = Feed(db_conn, 'timefeed', tags=['paynoattention', 'time_based'], storage_paradigm=TIME_BASED)
+    feed.insert_stix_object_in_arango([ipv4, autonomous_system, identity, relation, ipv4_net, ipv6])
 
     # test with grouped paradigm
     autonomous_system = AutonomousSystem(number=1234, name='Google')
@@ -56,7 +58,10 @@ if __name__ == "__main__":
 
     print('\n\n\n\n\n> 2. Getting data')
     request = Request(db_conn, datetime.now())
-    results = request.request(tags=['dogstory'],
+    results = request.request(tags=['time_based'],
                              values={'type': 'identity',
-                                    'name' : 'My dog'})
+                                    'name' : 'My grand mother'})
     print(results)
+
+    print('\n\n\n\n\n> 3. Other')
+    print(stix_modifiers)
