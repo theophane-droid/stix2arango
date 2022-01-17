@@ -76,9 +76,9 @@ Notes :
 ### 3. Pre-calculated fields
 
 You can use pre-calculated fields in your queries.
-These fields should be calculate when you insert objects in the database, then you can specify how to query them.
+These fields are calculated when you insert objects in the database, then you can specify how to query them.
 
-Exemple :
+Example :
 ```python
 from stix2arango.exceptions import FieldCanNotBeCalculatedBy
 from stix2arango import stix_modifiers
