@@ -51,7 +51,7 @@ Currently, the following stix patterning features are supported :
 - Comparaison operator : `<, <=, >, >=, =, !=`
 - Logical operator : `AND, OR`
 
-Thus you can build queries like :
+Thus you can use patterning like :
 
 ```
 [file:hash:md5 = 'a1b2c3d4e5' OR (file:hash:sha1 = 'a1b2c3d4e5' AND file.name = 'myfile.txt')]
