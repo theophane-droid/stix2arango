@@ -7,6 +7,7 @@ from stix2arango.version import __version__
 
 
 class Feed:
+    """A Feed is a container for a set of STIX objects."""
     db_conn = None
     feed_name = None
     tags = None
@@ -16,6 +17,15 @@ class Feed:
     obj_inserted = {}
     inserted_stix_types = []
     def __init__(self, db_conn, feed_name, tags=[], date=None, storage_paradigm=TIME_BASED):
+        """Initialize a Feed object.
+
+        Args:
+            db_conn (pyarango database object): the database connection
+            feed_name (str): the name of the feed
+            tags (list, optional): the tags that the feed will carry. Defaults to [].
+            date (datetime, optional): date of the next insertion. Defaults to now.
+            storage_paradigm (int, optional): explain to stix2arango how to store/request objects depending on time. Defaults to TIME_BASED.
+        """
         self.db_conn = db_conn
         self.feed_name = feed_name
         self.relations_to_insert = []
@@ -28,7 +38,16 @@ class Feed:
         self.version = __version__
 
 
-    def insert_one_object(self, object, colname):
+    def __insert_one_object(self, object, colname):
+        """Insert a single object in the database.
+
+        Args:
+            object (stix object): the object to insert
+            colname (str): the name of the collection
+
+        Returns:
+            pyarango doc: the stored document
+        """
         if object.type in stix_modifiers:
             args = dict(object)
             print(args)
@@ -59,14 +78,20 @@ class Feed:
 
 
     def insert_stix_object_in_arango(self, l_object):
-        self.save_feed()
+        """Insert a list of stix objects in the database.
+
+        Args:
+            l_object (list): the list of stix objects to insert
+        """
+        self.__save_feed()
         colname = get_collection_name(self)
         for object in l_object:
-            self.insert_one_object(object, colname)
-        self.insert_edge_in_arango()
+            self.__insert_one_object(object, colname)
+        self.__insert_edge_in_arango()
 
 
-    def insert_edge_in_arango(self):
+    def __insert_edge_in_arango(self):
+        """Insert the edges in the database."""
         colname = 'edge_' + get_collection_name(self)
         try:
             self.db_conn.createCollection(className='Edges', name=colname)
@@ -82,7 +107,8 @@ class Feed:
         self.edge_to_insert = []
 
 
-    def save_feed(self):
+    def __save_feed(self):
+        """Save the feed in the database."""
         colname = 'meta_history'
         try:
             self.db_conn.createCollection(className='Collection', name=colname)
@@ -110,6 +136,15 @@ class Feed:
 
 
     def get_last_feeds(db_conn, d_before):
+        """Get the last feeds before a certain date.
+
+        Args:
+            db_conn (pyarango database): the database connection
+            d_before (datetime): the date before which we want the feeds
+
+        Returns:
+            list: the list of feeds
+        """        
         # get all docs from meta_history collection
         colname = 'meta_history'
         col = db_conn[colname]

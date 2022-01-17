@@ -5,10 +5,6 @@ import struct
 
 from stix2arango.exceptions import FieldCanNotBeCalculatedBy
 
-def int_from_ipv6(addr):
-    hi, lo = struct.unpack('!QQ', socket.inet_pton(socket.AF_INET6, addr))
-    return (hi << 64) | lo
-
 # overwride stix core object
 class IPV4Modifier(IPv4Address):
     type = 'ipv4-addr' # this specifify that we will overwrite all the 'ipv4-addr' objects

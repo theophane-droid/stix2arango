@@ -13,7 +13,8 @@ from stix2arango.storage import GROUPED, GROUPED_BY_MONTH, TIME_BASED
 from stix2arango import stix_modifiers
 def get_database():
     password = os.environ['ARANGO_ROOT_PASSWORD']
-    db_conn = Connection(username='root', password=password, arangoURL='http://arangodb:8529')
+    url = os.environ['ARANGO_URL']
+    db_conn = Connection(username='root', password=password, arangoURL=url)
     try:
         database = db_conn.createDatabase('stix2arango')
     except CreationError:

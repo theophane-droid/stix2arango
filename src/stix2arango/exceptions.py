@@ -1,5 +1,3 @@
-
-
 class UnknownStorageParadigm(Exception):
     """
     Exception raised when the storage paradigm is unknown.

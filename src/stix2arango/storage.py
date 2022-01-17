@@ -8,6 +8,17 @@ GROUPED_BY_MONTH = 3 # every data inserted in a month goes in the same collectio
 GROUPED_BY_DAY = 4 # every data inserted in a day goes in the same collection
 
 def get_collection_name(feed):
+    """Return the name of the collection to use for the given feed.
+
+    Args:
+        feed (stix2arango.feed.Feed): The feed to use.
+
+    Raises:
+        UnknownStorageParadigm: If the feed's storage paradigm is unknown.
+
+    Returns:
+        str: The name of the collection to use.
+    """    
     if feed.storage_paradigm == TIME_BASED:
         str_timestamp = str(int(feed.date.timestamp()))
         return feed.feed_name + '_' + str_timestamp
