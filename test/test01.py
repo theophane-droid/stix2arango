@@ -58,10 +58,19 @@ if __name__ == "__main__":
 
     print('\n\n\n\n\n> 2. Getting data')
     request = Request(db_conn, datetime.now())
-    results = request.request(tags=['time_based'],
-                             values={'type': 'identity',
-                                    'name' : 'My grand mother'})
+    results = request.request("""[    identity:name = 'My grand mother']""",
+                        tags=['time_based'])
     print(results)
 
-    print('\n\n\n\n\n> 3. Other')
-    print(stix_modifiers)
+    request = Request(db_conn, datetime.now())
+    results = request.request("  [ipv4-addr:value  =   '97.8.8.8' ]  ",
+                        tags=['time_based'], max_depth=1)
+    print(results)
+
+    feed = Feed(db_conn, 'patterntestfeed', tags=['pattern'], storage_paradigm=TIME_BASED)
+    ipv4 = IPv4Address(value='97.8.1.0/24')
+    feed.insert_stix_object_in_arango([ipv4])
+    request = Request(db_conn, datetime.now())
+    results = request.request("[ ipv4-addr:x_ip  ='97.8.1.8'  ]",
+                        tags=['pattern'])
+    print(results)
