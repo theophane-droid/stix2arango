@@ -211,6 +211,7 @@ class Request:
                 vertex = vertex.getStore()
                 vertex = self.__remove_arango_fields(vertex)
                 vertex['x_feed'] = feed.feed_name
+                vertex['x_tags'] = feed.tags
                 results.append(self.__remove_arango_fields(vertex))
         return results
 
