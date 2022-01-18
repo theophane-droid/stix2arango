@@ -75,3 +75,7 @@ if __name__ == "__main__":
     results = request.request("[ ipv4-addr:x_ip  ='97.8.1.8'  ]",
                         tags=['pattern'])
     print(results)
+
+    results = request.request("[ malware:name  = 'Adware'  ]",
+                        tags=['pattern'])
+    print(results)
