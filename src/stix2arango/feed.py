@@ -13,6 +13,7 @@ class Feed:
     tags = None
     date = None
     storage_paradigm = None
+    feed_already_saved = False
     edge_to_insert = []
     obj_inserted = {}
     inserted_stix_types = []
@@ -83,7 +84,9 @@ class Feed:
         Args:
             l_object (list): the list of stix objects to insert
         """
-        self.__save_feed()
+        if not self.feed_already_saved:
+            self.__save_feed()
+            self.feed_already_saved = True
         colname = get_collection_name(self)
         for object in l_object:
             self.__insert_one_object(object, colname)
