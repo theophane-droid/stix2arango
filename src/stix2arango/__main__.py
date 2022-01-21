@@ -25,6 +25,7 @@ def request_for_stix():
     pattern = request.args.get('pattern')
     timestamp = request.args.get('timestamp')
     tags = request.args.get('tags')
+    depth = request.args.get('depth')
     if timestamp:
         date = datetime.fromtimestamp(int(timestamp))
     else:
@@ -33,10 +34,14 @@ def request_for_stix():
         tags = unquote(tags).split(',')
     else:
         tags = []
+    if depth:
+        depth = int(depth)
+    else:
+        depth = 3
     if not pattern:
         return {'error': 'pattern is required'}
     r = Request(db_conn, date)
-    return {'results': r.request(unquote(pattern), tags)}
+    return {'results': r.request(unquote(pattern), tags, max_depth=depth)}
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='start a web server, which wraps stix2arango')
