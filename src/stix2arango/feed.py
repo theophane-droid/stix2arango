@@ -51,7 +51,6 @@ class Feed:
         """
         if object.type in stix_modifiers:
             args = dict(object)
-            print(args)
             object = stix_modifiers[object.type](**args)
 
         if object.type not in self.inserted_stix_types:
