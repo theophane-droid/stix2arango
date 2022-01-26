@@ -52,9 +52,9 @@ def vaccum_database():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='start a web server, which wraps stix2arango')
-    parser.add_argument('--host', default='smaug.local', help='database host')
+    parser.add_argument('--host', help='database host')
     parser.add_argument('--port', default=8529, help='database port')
-    parser.add_argument('--db', default='smaug', help='database name')
+    parser.add_argument('--db', help='database name')
     parser.add_argument('--user', default='root', help='database user')
     parser.add_argument('--password', default='', help='database password')
     parser.add_argument('--action', default='web_server', help='can be web_server or vaccum')
