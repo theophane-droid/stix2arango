@@ -109,7 +109,31 @@ stix_modifiers.add_modifier(IPV4Modifier)
 After you add the modifier in stix_midifiers, if you insert an ipv4-addr object, the field x_is_cidr will be set to True if the ipv4-addr is a cidr notation.
 To use the new field in your query, you have first to insert the modifier in stix_modifiers.
 
- ## 4. Run test
+## 4. Clean old inserted data
+
+By default when a feed is created, the vaccum date is setted to date parameter + 90 days.
+But you can change it using the vaccum_date parameter.
+
+```python3
+feed = Feed(db_conn, 'grouped_by_month_feed', tags=['vaccumexample'], storage_paradigm=GROUPED_BY_MONTH, date=datetime.now(), vaccum_date=datetime.now()+timedelta(days=5))
+```
+
+You can run the stix2arango.feed.vaccum method to clean database from feed objects older than vaccum_date.
+
+## 5. The stix2arango module
+stix2arango can be used as a module, to provide a simple web wrapper for stix2arango or to launch the vaccum method.
+
+Launch a web server : 
+```bash
+$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password changeme --action web_server
+```
+
+Launch a vaccum :
+```bash
+$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password changeme --action vaccum
+```
+
+## 6. Run test
 
 Please install docker. Then, you can run test with the following commands : 
 
