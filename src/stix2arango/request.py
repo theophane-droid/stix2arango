@@ -5,7 +5,7 @@ from stix2arango.storage import get_collection_name
 from stix2arango.exceptions import (PatternAlreadyContainsType, 
             MalformatedExpression, MalformatedExpression, FieldCanNotBeCalculatedBy)
 from stix2arango import stix_modifiers
-
+import uuid
 
 SPECIAL_CHARS = '[()]=<>'
 STRING_CHARS = '"\''
@@ -186,7 +186,7 @@ class Request:
         return {k:v for k, v in object.items() if not k.startswith('_')}
 
 
-    def request_one_feed(self, feed, pattern, max_depth=5):
+    def request_one_feed(self, feed, pattern, max_depth=5, create_index=True):
         """Request the objects from a feed
 
         Args:
@@ -204,6 +204,9 @@ class Request:
 
         aql = aql_prefix + aql_middle + aql_suffix
         matched_results = self.db_conn.AQLQuery(aql, raw_results=True)
+        if create_index:
+            self.__create_index_from_query(col_name, aql)        
+        # create 
         results = []
         for r in matched_results:
             vertexes = self.__graph_traversal(r['_id'], max_depth=max_depth)
@@ -216,7 +219,7 @@ class Request:
         return results
 
 
-    def request(self, pattern, tags=[], max_depth=5):
+    def request(self, pattern, tags=[], max_depth=5, create_index=True):
         """Request the objects from the database
 
         Args:
@@ -231,9 +234,23 @@ class Request:
         feeds = [feed for feed in feeds if set(tags).issubset(set(feed.tags))]
         results = []
         for feed in feeds:
-            results.extend(self.request_one_feed(feed, pattern, max_depth=max_depth))
+            results.extend(self.request_one_feed(feed, pattern, max_depth=max_depth, create_index=create_index))
         return results
     
+    def __create_index_from_query(self, col_name, query):
+        """Create an index from a query
+
+        Args:
+            query (str): the query to create the index from
+
+        Returns:
+            str: the created index
+        """
+        index_name = 'stix2arango_idx_' + str(uuid.uuid4())
+        fields = self.__extract_field_from_query(query)
+        self.db_conn[col_name].ensureIndex(index_type = 'persistent', fields = fields)
+        return index_name
+
 
     def __graph_traversal(self, id, max_depth=5):
         """Traverse the graph to get the related objects
@@ -248,3 +265,33 @@ class Request:
         col_name = id.split('/')[0]
         aql = """FOR v, e in 0..{} ANY '{}' {} RETURN v""".format(max_depth, id, 'edge_' + col_name)
         return self.db_conn.AQLQuery(aql, raw_results=True)
+
+
+    def __extract_field_path(self, node):
+        result = []
+        for sub in node['subNodes']:
+            if sub['type'] == 'attribute access' or sub['type'] == 'reference':
+                result += [sub['name']]
+                if 'subNodes' in sub:
+                    result += self.__extract_field_path(sub)
+        return result
+
+    def __extract_nodes(self, node):
+        results = []
+        if 'compare' in node['type']:
+            path = self.__extract_field_path(node)
+            results.append('.'.join(path[::-1][1:]))
+        elif 'subNodes' in node:
+            for sub in node['subNodes']:
+                results += self.__extract_nodes(sub) 
+        return results
+
+    def __extract_field_from_query(self, aql):
+        query = self.db_conn.AQLQuery(aql)
+        explanation = query.explain()
+        print(explanation)
+        results = []
+        for v in explanation['plan']['nodes']:
+            if 'filter' in v:
+                results = self.__extract_nodes(v['filter'])
+        return results
