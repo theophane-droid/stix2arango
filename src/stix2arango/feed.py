@@ -1,10 +1,38 @@
-from pyArango.theExceptions import CreationError
-from datetime import datetime
+from pyArango.theExceptions import CreationError, DeletionError
+from datetime import datetime, timedelta
 
 from stix2arango.storage import TIME_BASED, GROUPED, get_collection_name
 from stix2arango import stix_modifiers
 from stix2arango.version import __version__
 
+
+def vaccum(db_conn):
+    actual_date = datetime.now()
+    colname = 'meta_history'
+    col = db_conn[colname]
+    docs = col.fetchAll()
+    for doc in docs:
+        date = datetime.fromtimestamp(doc['date'])
+        vaccum_date = datetime.fromtimestamp(doc['vaccum_date'])
+        feed = Feed(db_conn, doc['feed_name'], doc['tags'], date, doc['storage_paradigm'], vaccum_date)
+        if feed.vaccum_date != 0 and feed.vaccum_date <= actual_date:
+            # remove doc
+            doc.delete()
+
+            # remove collection
+            col_name = get_collection_name(feed)
+            edge_col_name = 'edge_' + col_name
+            try:
+                col = db_conn[col_name]
+                col.delete()
+            except DeletionError:
+                pass
+            try:
+                edge_col = db_conn[edge_col_name]
+                edge_col.delete()
+            except DeletionError:
+                pass
+            
 
 class Feed:
     """A Feed is a container for a set of STIX objects."""
@@ -17,7 +45,14 @@ class Feed:
     edge_to_insert = []
     obj_inserted = {}
     inserted_stix_types = []
-    def __init__(self, db_conn, feed_name, tags=[], date=None, storage_paradigm=TIME_BASED):
+    vaccum_date = None
+    def __init__(self, 
+                db_conn, 
+                feed_name, 
+                tags=[], 
+                date=None, 
+                storage_paradigm=TIME_BASED, 
+                vaccum_date=None):
         """Initialize a Feed object.
 
         Args:
@@ -26,6 +61,7 @@ class Feed:
             tags (list, optional): the tags that the feed will carry. Defaults to [].
             date (datetime, optional): date of the next insertion. Defaults to now.
             storage_paradigm (int, optional): explain to stix2arango how to store/request objects depending on time. Defaults to TIME_BASED.
+            vaccum_date (datetime, optional): date of the feed deletion. If no value is provided, vaccum_date is calculated to date + 60 days. If set to 0, the feed will not be deleted. Defaults to None.
         """
         self.db_conn = db_conn
         self.feed_name = feed_name
@@ -36,6 +72,10 @@ class Feed:
         else:
             self.date = datetime.now()
         self.storage_paradigm = storage_paradigm
+        if vaccum_date!=None:
+            self.vaccum_date = vaccum_date            
+        else: # if vaccum_date is not set, set it to date + 90 days
+            self.vaccum_date = self.date + timedelta(days=90)
         self.version = __version__
 
 
@@ -129,7 +169,8 @@ class Feed:
             'tags': self.tags,
             'storage_paradigm': self.storage_paradigm,
             'version': self.version,
-            'inserted_stix_types': self.inserted_stix_types
+            'inserted_stix_types': self.inserted_stix_types,
+            'vaccum_date': int(self.vaccum_date.timestamp())
         }
     
 
@@ -155,7 +196,8 @@ class Feed:
         results_feeds = {}
         for doc in docs:
             date = datetime.fromtimestamp(doc['date'])
-            feed = Feed(db_conn, doc['feed_name'], doc['tags'], date, doc['storage_paradigm'])
+            vaccum_date = datetime.fromtimestamp(doc['vaccum_date'])
+            feed = Feed(db_conn, doc['feed_name'], doc['tags'], date, doc['storage_paradigm'], vaccum_date)
             if date.timestamp() < d_before.timestamp():
                 if feed.feed_name not in results_feeds:
                     results_feeds[feed.feed_name] = feed

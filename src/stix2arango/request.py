@@ -193,6 +193,7 @@ class Request:
             feed (stix2arango.feed.Feed): the feed to request
             pattern (str): the stix2.1 pattern
             max_depth (int, optional): graph traversal depth limit. Defaults to 5.
+            create_index (bool, optional): create an index based on search to optimize future query. Defaults to True.
 
         Returns:
             list: the objects which match the pattern and their related objects (depth limited)
@@ -226,7 +227,7 @@ class Request:
             pattern (str): the stix2.1 pattern
             tags (list, optional): Request the feed tag with all the provided tags. Defaults to [].
             max_depth (int, optional):  graph traversal depth limit. Defaults to 5.
-
+            create_index (bool, optional): create an index based on search to optimize future query. Defaults to True.
         Returns:
             list: the objects which match the pattern and their related objects (depth limited)
         """

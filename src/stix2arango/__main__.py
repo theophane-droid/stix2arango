@@ -7,9 +7,11 @@ from urllib.parse import unquote
 
 from stix2arango.version import __version__, __author__
 from stix2arango.request import Request
+from stix2arango.feed import vaccum
 
 app = Flask(__name__)
 db_conn = None
+
 
 """
     Simple wrapper around stix2arango requests. 
@@ -43,6 +45,11 @@ def request_for_stix():
     r = Request(db_conn, date)
     return {'results': r.request(unquote(pattern), tags, max_depth=depth)}
 
+@app.route('/vaccum', methods=['GET'])
+def vaccum_database():
+    vaccum(db_conn)
+    return {'results': 'ok'}
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='start a web server, which wraps stix2arango')
     parser.add_argument('--host', default='smaug.local', help='database host')
@@ -50,12 +57,15 @@ if __name__ == '__main__':
     parser.add_argument('--db', default='smaug', help='database name')
     parser.add_argument('--user', default='root', help='database user')
     parser.add_argument('--password', default='', help='database password')
+    parser.add_argument('--action', default='web_server', help='can be web_server or vaccum')
     args = parser.parse_args()
     if args.password == '':
         print('Please provide a password for the database')
         exit(1)
     url = 'http://{}:{}'.format(args.host, args.port)
-    print(url)
     conn = Connection(username=args.user, password=args.password, arangoURL=url)
     db_conn = conn[args.db]
-    app.run(host='0.0.0.0', port=622)
+    if args.action == 'web_server':
+        app.run(host='0.0.0.0', port=622)
+    elif args.action == 'vaccum':
+        vaccum(db_conn)

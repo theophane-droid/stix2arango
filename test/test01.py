@@ -4,13 +4,14 @@ from pyArango.connection import *
 from pyArango.theExceptions import CreationError
 
 # insert root folder in sys.path
-sys.path.append('/app/src')
-sys.path.append('/app/test')
+sys.path.insert(0, '/app/src')
+sys.path.insert(1, '/app/test')
 
-from stix2arango.feed import Feed
+from stix2arango.feed import Feed, vaccum
 from stix2arango.request import Request
 from stix2arango.storage import GROUPED, GROUPED_BY_MONTH, TIME_BASED
 from stix2arango import stix_modifiers
+from datetime import datetime
 def get_database():
     password = os.environ['ARANGO_ROOT_PASSWORD']
     url = os.environ['ARANGO_URL']
@@ -68,7 +69,7 @@ if __name__ == "__main__":
                         tags=['time_based'], max_depth=1)
     print(results)
 
-    feed = Feed(db_conn, 'patterntestfeed', tags=['pattern'], storage_paradigm=TIME_BASED)
+    feed = Feed(db_conn, 'patterntestfeed', tags=['pattern'], storage_paradigm=TIME_BASED, )
     ipv4 = IPv4Address(value='97.8.1.0/24')
     feed.insert_stix_object_in_arango([ipv4])
     request = Request(db_conn, datetime.now())
@@ -79,3 +80,15 @@ if __name__ == "__main__":
     results = request.request("[ malware:name  = 'Adware'  ]",
                         tags=['pattern'])
     print(results)
+
+
+    print('\n\n\n\n\n> 3. Vaccum test')
+    feed = Feed(db_conn, 'vaccumentest', tags=['vaccum'], storage_paradigm=TIME_BASED, vaccum_date=datetime.fromtimestamp(10))
+    ipv4 = IPv4Address(value='97.8.1.0/24')
+    feed.insert_stix_object_in_arango([ipv4])
+    vaccum(db_conn)
+    feeds = Feed.get_last_feeds(db_conn, datetime(2022, 12, 12))
+    for feed in feeds:
+        if feed.feed_name == 'vaccumentest':
+            raise Exception('Vaccum failed')
+    print('Vaccum done')
