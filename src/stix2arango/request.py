@@ -248,7 +248,7 @@ class Request:
         """
         index_name = 'stix2arango_idx_' + str(uuid.uuid4())
         fields = self.__extract_field_from_query(query)
-        self.db_conn[col_name].ensureIndex(index_type = 'persistent', fields = fields)
+        self.db_conn[col_name].ensureIndex(index_type = 'persistent', fields = fields, in_background=True)
         return index_name
 
 
