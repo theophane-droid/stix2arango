@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='stix2arango',
-    version='0.1.1',
+    version='1.0.1',
     author='theophanedroid',
     description='stix2arango is a python package to convert stix2 to arangoDB',
     packages=['stix2arango',],
