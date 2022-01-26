@@ -2,10 +2,14 @@ from datetime import datetime
 
 from stix2arango.exceptions import UnknownStorageParadigm
 
-TIME_BASED = 1 # every insertion, a new collection is created
-GROUPED = 2 # every data inserted goes to the same collection
-GROUPED_BY_MONTH = 3 # every data inserted in a month goes in the same collection
-GROUPED_BY_DAY = 4 # every data inserted in a day goes in the same collection
+#: every insertion, a new collection is created
+TIME_BASED = 1 
+#: every data inserted goes to the same collection
+GROUPED = 2 
+#: every data inserted in a month goes in the same collection
+GROUPED_BY_MONTH = 3 
+#: every data inserted in a day goes in the same collection
+GROUPED_BY_DAY = 4 
 
 def get_collection_name(feed):
     """Return the name of the collection to use for the given feed.

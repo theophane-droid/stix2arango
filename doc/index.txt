@@ -1,0 +1,175 @@
+Welcome to stix2arango’s documentation!
+***************************************
+
+class stix2arango.feed.Feed(db_conn, feed_name, tags=[], date=None, storage_paradigm=1, vaccum_date=None)
+
+   A Feed is a container for a set of STIX objects.
+
+   __init__(db_conn, feed_name, tags=[], date=None, storage_paradigm=1, vaccum_date=None)
+
+      Initialize a Feed object.
+
+      Parameters:
+         * **db_conn** (*pyarango database object*) – the database
+           connection
+
+         * **feed_name** (*str*) – the name of the feed
+
+         * **tags** (*list**, **optional*) – the tags that the feed
+           will carry. Defaults to [].
+
+         * **date** (*datetime**, **optional*) – date of the next
+           insertion. Defaults to now.
+
+         * **storage_paradigm** (*int**, **optional*) – explain to
+           stix2arango how to store/request objects depending on time.
+           Defaults to TIME_BASED.
+
+         * **vaccum_date** (*datetime**, **optional*) – date of the
+           feed deletion. If no value is provided, vaccum_date is
+           calculated to date + 60 days. If set to 0, the feed will
+           not be deleted. Defaults to None.
+
+   get_last_feeds(d_before)
+
+      Get the last feeds before a certain date.
+
+      Parameters:
+         * **db_conn** (*pyarango database*) – the database connection
+
+         * **d_before** (*datetime*) – the date before which we want
+           the feeds
+
+      Returns:
+         the list of feeds
+
+      Return type:
+         list
+
+   insert_stix_object_in_arango(l_object)
+
+      Insert a list of stix objects in the database.
+
+      Parameters:
+         **l_object** (*list*) – the list of stix objects to insert
+
+
+   Storage paradigm (Cf storage_paradigm in stix2arango.feed.Feed):
+
+stix2arango.storage.GROUPED = 2
+
+   every data inserted goes to the same collection
+
+stix2arango.storage.GROUPED_BY_DAY = 4
+
+   every data inserted in a day goes in the same collection
+
+stix2arango.storage.GROUPED_BY_MONTH = 3
+
+   every data inserted in a month goes in the same collection
+
+stix2arango.storage.TIME_BASED = 1
+
+   every insertion, a new collection is created
+
+stix2arango.storage.get_collection_name(feed)
+
+   Return the name of the collection to use for the given feed.
+
+   Parameters:
+      **feed** (*stix2arango.feed.Feed*) – The feed to use.
+
+   Raises:
+      **UnknownStorageParadigm** – If the feed’s storage paradigm is
+      unknown.
+
+   Returns:
+      The name of the collection to use.
+
+   Return type:
+      str
+
+
+
+class stix2arango.request.Request(db_conn, date)
+
+   Class to manage a request to the database
+
+   __init__(db_conn, date)
+
+      Initialize the request
+
+      Parameters:
+         * **db_conn** (*pyArango database*) – the database connection
+
+         * **date** (*datetime*) – the date before which the objects
+           must be requested
+
+   request(pattern, tags=[], max_depth=5, create_index=True)
+
+      Request the objects from the database
+
+      Parameters:
+         * **pattern** (*str*) – the stix2.1 pattern
+
+         * **tags** (*list**, **optional*) – Request the feed tag with
+           all the provided tags. Defaults to [].
+
+         * **max_depth** (*int**, **optional*) – graph traversal depth
+           limit. Defaults to 5.
+
+         * **create_index** (*bool**, **optional*) – create an index
+           based on search to optimize future query. Defaults to True.
+
+      Returns:
+         the objects which match the pattern and their related objects
+         (depth limited)
+
+      Return type:
+         list
+
+   request_one_feed(feed, pattern, max_depth=5, create_index=True)
+
+      Request the objects from a feed
+
+      Parameters:
+         * **feed** (*stix2arango.feed.Feed*) – the feed to request
+
+         * **pattern** (*str*) – the stix2.1 pattern
+
+         * **max_depth** (*int**, **optional*) – graph traversal depth
+           limit. Defaults to 5.
+
+         * **create_index** (*bool**, **optional*) – create an index
+           based on search to optimize future query. Defaults to True.
+
+      Returns:
+         the objects which match the pattern and their related objects
+         (depth limited)
+
+      Return type:
+         list
+
+
+
+exception stix2arango.exceptions.FieldCanNotBeCalculatedBy(field, stix_modifiers)
+
+   Exception raised when a field can not be calculated by a
+   stixmodifier
+
+exception stix2arango.exceptions.MalformatedComparaison(compare_string)
+
+   Exception raised when patterning is not correct
+
+exception stix2arango.exceptions.MalformatedExpression
+
+   Exception raised when patterning is not correct
+
+exception stix2arango.exceptions.PatternAlreadyContainsType(type1, type2)
+
+   Exception raised when a pattern request two types of cyber
+   obervables ex [file:hash:md5 = ‘…’ AND ipv4-addr:value=’8.8.8.8’]
+
+exception stix2arango.exceptions.UnknownStorageParadigm(value)
+
+   Exception raised when the storage paradigm is unknown.
