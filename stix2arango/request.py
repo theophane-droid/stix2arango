@@ -290,7 +290,6 @@ class Request:
     def __extract_field_from_query(self, aql):
         query = self.db_conn.AQLQuery(aql)
         explanation = query.explain()
-        print(explanation)
         results = []
         for v in explanation['plan']['nodes']:
             if 'filter' in v:
