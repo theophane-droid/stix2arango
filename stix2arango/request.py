@@ -200,7 +200,7 @@ class Request:
         """        
         col_name = get_collection_name(feed)
         aql_prefix = 'FOR f IN {}  '.format(col_name)
-        aql_suffix = ' RETURN f'
+        aql_suffix = 'limit 1 RETURN f'
         aql_middle = 'FILTER ' + request_compil(pattern)
 
         aql = aql_prefix + aql_middle + aql_suffix
