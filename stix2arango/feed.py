@@ -13,25 +13,26 @@ def vaccum(db_conn):
     docs = col.fetchAll()
     for doc in docs:
         date = datetime.fromtimestamp(doc['date'])
-        vaccum_date = datetime.fromtimestamp(doc['vaccum_date'])
-        feed = Feed(db_conn, doc['feed_name'], doc['tags'], date, doc['storage_paradigm'], vaccum_date)
-        if feed.vaccum_date != 0 and feed.vaccum_date <= actual_date:
-            # remove doc
-            doc.delete()
+        if 'vaccum_date' in doc:
+            vaccum_date = datetime.fromtimestamp(doc['vaccum_date'])
+            feed = Feed(db_conn, doc['feed_name'], doc['tags'], date, doc['storage_paradigm'], vaccum_date)
+            if feed.vaccum_date != 0 and feed.vaccum_date <= actual_date:
+                # remove doc
+                doc.delete()
 
-            # remove collection
-            col_name = get_collection_name(feed)
-            edge_col_name = 'edge_' + col_name
-            try:
-                col = db_conn[col_name]
-                col.delete()
-            except DeletionError:
-                pass
-            try:
-                edge_col = db_conn[edge_col_name]
-                edge_col.delete()
-            except DeletionError:
-                pass
+                # remove collection
+                col_name = get_collection_name(feed)
+                edge_col_name = 'edge_' + col_name
+                try:
+                    col = db_conn[col_name]
+                    col.delete()
+                except DeletionError:
+                    pass
+                try:
+                    edge_col = db_conn[edge_col_name]
+                    edge_col.delete()
+                except DeletionError:
+                    pass
             
 
 class Feed:
@@ -196,7 +197,10 @@ class Feed:
         results_feeds = {}
         for doc in docs:
             date = datetime.fromtimestamp(doc['date'])
-            vaccum_date = datetime.fromtimestamp(doc['vaccum_date'])
+            if 'vaccum_date' in doc:
+                vaccum_date = datetime.fromtimestamp(doc['vaccum_date'])
+            else:
+                vaccum_date = 0
             feed = Feed(db_conn, doc['feed_name'], doc['tags'], date, doc['storage_paradigm'], vaccum_date)
             if date.timestamp() < d_before.timestamp():
                 if feed.feed_name not in results_feeds:
