@@ -1,3 +1,9 @@
+import os
+import sys
+
+if 'TEST' in os.environ != '':
+    sys.path.insert(0, '/app')
+
 from flask import Flask, json, request
 import flask
 import argparse
@@ -14,12 +20,14 @@ db_conn = None
 
 
 """
-    Simple wrapper around stix2arango requests. 
+    Simple wrapper around stix2arango requests.
 """
+
 
 @app.route('/')
 def home():
-    return  {'version': __version__,}
+    return {'version': __version__}
+
 
 @app.route('/request', methods=['GET'])
 def request_for_stix():
@@ -32,7 +40,7 @@ def request_for_stix():
         date = datetime.fromtimestamp(int(timestamp))
     else:
         date = datetime.now()
-    if tags :
+    if tags:
         tags = unquote(tags).split(',')
     else:
         tags = []
@@ -45,25 +53,61 @@ def request_for_stix():
     r = Request(db_conn, date)
     return {'results': r.request(unquote(pattern), tags, max_depth=depth)}
 
+
 @app.route('/vaccum', methods=['GET'])
 def vaccum_database():
     vaccum(db_conn)
     return {'results': 'ok'}
 
+
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='start a web server, which wraps stix2arango')
-    parser.add_argument('--host', help='database host')
-    parser.add_argument('--port', default=8529, help='database port')
-    parser.add_argument('--db', help='database name')
-    parser.add_argument('--user', default='root', help='database user')
-    parser.add_argument('--password', default='', help='database password')
-    parser.add_argument('--action', default='web_server', help='can be web_server or vaccum')
+    parser = argparse.ArgumentParser(
+        description='start a web server, which wraps stix2arango'
+    )
+    parser.add_argument(
+        '--host',
+        help='database host'
+    )
+    parser.add_argument(
+        '--port',
+        default=8529,
+        help='database port'
+    )
+    parser.add_argument(
+        '--db',
+        help='database name'
+    )
+    parser.add_argument(
+        '--user',
+        default='root',
+        help='database user'
+    )
+    parser.add_argument(
+        '--password',
+        default='',
+        help='database password'
+    )
+    parser.add_argument(
+        '--action',
+        default='web_server',
+        help='can be web_server or vaccum'
+    )
     args = parser.parse_args()
+    if args.host == '':
+        print('Please provide a host for the database')
+        exit(1)
+    if args.db == '':
+        print('Please provide a database name')
+        exit(1)
     if args.password == '':
         print('Please provide a password for the database')
         exit(1)
     url = 'http://{}:{}'.format(args.host, args.port)
-    conn = Connection(username=args.user, password=args.password, arangoURL=url)
+    conn = Connection(
+        username=args.user,
+        password=args.password,
+        arangoURL=url
+    )
     db_conn = conn[args.db]
     if args.action == 'web_server':
         app.run(host='0.0.0.0', port=622)

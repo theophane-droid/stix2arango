@@ -1,11 +1,11 @@
 import sys, os
+
+# ensure that we use the current version of the package
+sys.path.insert(0, '/app')
+
 from stix2 import IPv4Address, AutonomousSystem, Identity, Relationship, Incident, IPv6Address
 from pyArango.connection import *
 from pyArango.theExceptions import CreationError
-
-# insert root folder in sys.path
-sys.path.insert(0, '/app/src')
-sys.path.insert(1, '/app/test')
 
 from stix2arango.feed import Feed, vaccum
 from stix2arango.request import Request
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     ipv4 = IPv4Address(value='97.8.1.0/24')
     feed.insert_stix_object_in_arango([ipv4])
     request = Request(db_conn, datetime.now())
-    results = request.request("[ ipv4-addr:x_ip  ='97.8.1.8'  ]",
+    results = request.request("[ipv4-addr:value='8.8.8.8']",
                         tags=['pattern'])
     print(results)
 

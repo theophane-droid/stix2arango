@@ -2,14 +2,16 @@ from pyArango.query import AQLQuery
 
 from stix2arango.feed import Feed
 from stix2arango.storage import get_collection_name
-from stix2arango.exceptions import (PatternAlreadyContainsType, 
-            MalformatedExpression, MalformatedExpression, FieldCanNotBeCalculatedBy)
+from stix2arango.exceptions import (PatternAlreadyContainsType,
+                                    MalformatedExpression,
+                                    FieldCanNotBeCalculatedBy)
 from stix2arango import stix_modifiers
 import uuid
 
 SPECIAL_CHARS = '[()]=<>'
 STRING_CHARS = '"\''
 SEPARATOR_CHARS = ' \t'
+
 
 def splitter(expression):
     """Split a string into a list of words depending on the separator chars
@@ -46,6 +48,7 @@ def splitter(expression):
         result.append(current_word)
     return result
 
+
 def word_compil(word):
     """Compile word in AQL syntax
 
@@ -71,6 +74,7 @@ def word_compil(word):
         return word, type
     return word, None
 
+
 def compare_compile(compare_string):
     """Compile a comparaison expression from stix to AQL
 
@@ -87,7 +91,8 @@ def compare_compile(compare_string):
     if len(splitted_compare) != 3:
         raise MalformatedExpression(compare_string)
     operator = splitted_compare[1]
-    if ':' in splitted_compare[0] and splitted_compare[0][0] not in STRING_CHARS:
+    if ':' in splitted_compare[0] and \
+            splitted_compare[0][0] not in STRING_CHARS:
         field = splitted_compare[0]
         value = splitted_compare[2]
     else:
@@ -102,6 +107,7 @@ def compare_compile(compare_string):
             operator = '=='
         return field + ' ' + operator + ' ' + value
 
+
 def request_compil(expression):
     """Compile a stix pattern to AQL comparaison expression
 
@@ -109,7 +115,7 @@ def request_compil(expression):
         expression (str): stix pattern to compile
 
     Raises:
-        PatternAlreadyContainsType: if the pattern contains different types of SDOs
+        PatternAlreadyContainsType: when contains different types of SDOs
 
     Returns:
         str: AQL expression
@@ -134,14 +140,14 @@ def request_compil(expression):
         if c in SPECIAL_CHARS + SEPARATOR_CHARS and not is_in_string:
             word, calculated_type = word_compil(current_word)
             result += word
-            word, _ = word_compil(c) 
+            word, _ = word_compil(c)
             result += word
-            if current_word in ['(',')','[',']','AND', 'OR']:
+            if current_word in ['(', ')', '[', ']', 'AND', 'OR']:
                 l_compare.append(current_compare)
                 current_compare = ''
             else:
                 current_compare += current_word
-            if c not in ['(',')','[',']'] and not is_in_string:
+            if c not in ['(', ')', '[', ']'] and not is_in_string:
                 current_compare += c
             current_word = ''
             if calculated_type:
@@ -160,6 +166,7 @@ def request_compil(expression):
         result = result.replace(compare, compiled_compare)
     return result + ' AND f.type == "' + type + '"'
 
+
 class Request:
     """Class to manage a request to the database"""
 
@@ -168,11 +175,10 @@ class Request:
 
         Args:
             db_conn (pyArango database): the database connection
-            date (datetime): the date before which the objects must be requested
-        """        
+            date (datetime): timestamp of request
+        """
         self.db_conn = db_conn
         self.date = date
-
 
     def __remove_arango_fields(self, object):
         """Remove the fields created by arangoDB from the object
@@ -183,31 +189,38 @@ class Request:
         Returns:
             dict: the cleaned object
         """
-        return {k:v for k, v in object.items() if not k.startswith('_')}
+        return {k: v for k, v in object.items() if not k.startswith('_')}
 
-
-    def request_one_feed(self, feed, pattern, max_depth=5, create_index=True):
+    def request_one_feed(self, feed, pattern, max_depth=5, create_index=True, limit=-1):
         """Request the objects from a feed
 
         Args:
             feed (stix2arango.feed.Feed): the feed to request
             pattern (str): the stix2.1 pattern
-            max_depth (int, optional): graph traversal depth limit. Defaults to 5.
-            create_index (bool, optional): create an index based on search to optimize future query. Defaults to True.
+            max_depth (int, optional): graph traversal depth limit.\
+                Defaults to 5.
+            create_index (bool, optional): create index based on search.\
+                Defaults to True.
+            limit (int, optional): limit the number of results.
+                if set to -1, no limit.
+                Defaults to -1. 
 
         Returns:
-            list: the objects which match the pattern and their related objects (depth limited)
-        """        
+            list: objects matching pattern and their related(depth limited)
+        """
         col_name = get_collection_name(feed)
         aql_prefix = 'FOR f IN {}  '.format(col_name)
-        aql_suffix = 'limit 1 RETURN f'
+        if limit!=-1:
+            aql_suffix = ' LIMIT %d RETURN f' % (limit)
+        else:
+            aql_suffix = ' RETURN f'
         aql_middle = 'FILTER ' + request_compil(pattern)
 
         aql = aql_prefix + aql_middle + aql_suffix
         matched_results = self.db_conn.AQLQuery(aql, raw_results=True)
         if create_index:
-            self.__create_index_from_query(col_name, aql)        
-        # create 
+            self.__create_index_from_query(col_name, aql)
+        # create
         results = []
         for r in matched_results:
             vertexes = self.__graph_traversal(r['_id'], max_depth=max_depth)
@@ -219,25 +232,33 @@ class Request:
                 results.append(self.__remove_arango_fields(vertex))
         return results
 
-
     def request(self, pattern, tags=[], max_depth=5, create_index=True):
         """Request the objects from the database
 
         Args:
             pattern (str): the stix2.1 pattern
-            tags (list, optional): Request the feed tag with all the provided tags. Defaults to [].
-            max_depth (int, optional):  graph traversal depth limit. Defaults to 5.
-            create_index (bool, optional): create an index based on search to optimize future query. Defaults to True.
+            tags (list, optional): query feeds carrying all tags. \
+                Defaults to [].
+            max_depth (int, optional): graph traversal depth limit. \
+                Defaults to 5.
+            create_index (bool, optional): create index based on search.\
+                Defaults to True.
         Returns:
-            list: the objects which match the pattern and their related objects (depth limited)
+            list: objects matching pattern and their related(depth limited)
         """
         feeds = Feed.get_last_feeds(self.db_conn, self.date)
         feeds = [feed for feed in feeds if set(tags).issubset(set(feed.tags))]
         results = []
         for feed in feeds:
-            results.extend(self.request_one_feed(feed, pattern, max_depth=max_depth, create_index=create_index))
+            feed_result = self.request_one_feed(
+                feed,
+                pattern,
+                max_depth=max_depth,
+                create_index=create_index
+            )
+            results.extend(feed_result)
         return results
-    
+
     def __create_index_from_query(self, col_name, query):
         """Create an index from a query
 
@@ -249,24 +270,29 @@ class Request:
         """
         index_name = 'stix2arango_idx_' + str(uuid.uuid4())
         fields = self.__extract_field_from_query(query)
-        self.db_conn[col_name].ensureIndex(index_type = 'persistent', fields = fields, in_background=True)
+        if len(fields):
+            self.db_conn[col_name].ensureIndex(
+                index_type='persistent',
+                fields=fields,
+                in_background=True
+            )
         return index_name
-
 
     def __graph_traversal(self, id, max_depth=5):
         """Traverse the graph to get the related objects
 
         Args:
             id (str): the id of the object to start the traversal
-            max_depth (int, optional): graph traversal depth limit. Defaults to 5.
+            max_depth (int, optional): graph traversal depth limit. \
+                Defaults to 5.
 
         Returns:
             list: the related objects
         """
         col_name = id.split('/')[0]
-        aql = """FOR v, e in 0..{} ANY '{}' {} RETURN v""".format(max_depth, id, 'edge_' + col_name)
+        aql = """FOR v, e in 0..{} ANY '{}' {} RETURN v"""\
+            .format(max_depth, id, 'edge_' + col_name)
         return self.db_conn.AQLQuery(aql, raw_results=True)
-
 
     def __extract_field_path(self, node):
         result = []
@@ -284,7 +310,7 @@ class Request:
             results.append('.'.join(path[::-1][1:]))
         elif 'subNodes' in node:
             for sub in node['subNodes']:
-                results += self.__extract_nodes(sub) 
+                results += self.__extract_nodes(sub)
         return results
 
     def __extract_field_from_query(self, aql):

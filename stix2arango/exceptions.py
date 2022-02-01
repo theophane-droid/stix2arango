@@ -9,7 +9,6 @@ class UnknownStorageParadigm(Exception):
         return 'Unknown storage paradigm: {}'.format(self.value)
 
 
-
 class PatternAlreadyContainsType(Exception):
     """
     Exception raised when a pattern request two types of cyber obervables
@@ -23,12 +22,14 @@ class PatternAlreadyContainsType(Exception):
         return """Pattern can only contain one type of cyber observables
         You tried to request {} and {}""".format(self.type1, self.type2)
 
+
 class MalformatedExpression(Exception):
     """
     Exception raised when patterning is not correct
     """
     def __str__(self):
         return """Malformated pattern expression"""
+
 
 class MalformatedComparaison(Exception):
     """
@@ -40,6 +41,7 @@ class MalformatedComparaison(Exception):
     def __str__(self):
         return """Malformated compare string: {}""".format(self.compare_string)
 
+
 class FieldCanNotBeCalculatedBy(Exception):
     """
     Exception raised when a field can not be calculated by a stixmodifier
@@ -49,4 +51,5 @@ class FieldCanNotBeCalculatedBy(Exception):
         self.stix_modifiers = stix_modifiers
 
     def __str__(self):
-        return """Field {} can not be calculated by stixmodifier {}""".format(self.field, self.pattern)
+        return """Field {} can not be calculated by stixmodifier {}""" \
+            .format(self.field, self.pattern)
