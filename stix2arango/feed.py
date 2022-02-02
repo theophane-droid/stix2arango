@@ -1,7 +1,7 @@
 from pyArango.theExceptions import CreationError, DeletionError
 from datetime import datetime, timedelta
 
-from stix2arango.storage import TIME_BASED, GROUPED, get_collection_name
+from stix2arango.storage import TIME_BASED, GROUPED, STORAGE_PARADIGMS
 from stix2arango import stix_modifiers
 from stix2arango.version import __version__
 
@@ -28,7 +28,7 @@ def vaccum(db_conn):
                 doc.delete()
 
                 # remove collection
-                col_name = get_collection_name(feed)
+                col_name = feed.storage_paradigm.get_collection_name(feed)
                 edge_col_name = 'edge_' + col_name
                 try:
                     col = db_conn[col_name]
@@ -86,7 +86,10 @@ class Feed:
             self.date = date
         else:
             self.date = datetime.now()
-        self.storage_paradigm = storage_paradigm
+        if type(storage_paradigm) == int:
+            self.storage_paradigm = STORAGE_PARADIGMS[storage_paradigm - 1]
+        else:
+            self.storage_paradigm = storage_paradigm
         if vaccum_date:
             self.vaccum_date = vaccum_date
         else:  # if vaccum_date is not set, set it to date + 90 days
@@ -140,14 +143,14 @@ class Feed:
         if not self.feed_already_saved:
             self.__save_feed()
             self.feed_already_saved = True
-        colname = get_collection_name(self)
+        colname = self.storage_paradigm.get_collection_name(self)
         for object in l_object:
             self.__insert_one_object(object, colname)
         self.__insert_edge_in_arango()
 
     def __insert_edge_in_arango(self):
         """Insert the edges in the database."""
-        colname = 'edge_' + get_collection_name(self)
+        colname = 'edge_' + self.storage_paradigm.get_collection_name(self)
         try:
             self.db_conn.createCollection(className='Edges', name=colname)
         except CreationError:
@@ -174,11 +177,12 @@ class Feed:
         return doc
 
     def __dict__(self):
+        storage_paradigm_id = STORAGE_PARADIGMS.index(self.storage_paradigm) + 1
         return {
             'feed_name': self.feed_name,
             'date': int(self.date.timestamp()),
             'tags': self.tags,
-            'storage_paradigm': self.storage_paradigm,
+            'storage_paradigm': storage_paradigm_id,
             'version': self.version,
             'inserted_stix_types': self.inserted_stix_types,
             'vaccum_date': int(self.vaccum_date.timestamp())

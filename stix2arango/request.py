@@ -1,7 +1,6 @@
 from pyArango.query import AQLQuery
 
 from stix2arango.feed import Feed
-from stix2arango.storage import get_collection_name
 from stix2arango.exceptions import (
     PatternAlreadyContainsType,
     MalformatedExpression,
@@ -228,7 +227,7 @@ class Request:
         Returns:
             list: objects matching pattern and their related(depth limited)
         """
-        col_name = get_collection_name(feed)
+        col_name = feed.storage_paradigm.get_collection_name(feed)
         aql_prefix = 'FOR f IN {}  '.format(col_name)
         if limit != -1:
             aql_suffix = ' LIMIT %d RETURN f' % (limit)
@@ -252,7 +251,13 @@ class Request:
                 results.append(self.__remove_arango_fields(vertex))
         return results
 
-    def request(self, pattern, tags=[], max_depth=5, create_index=True):
+    def request(
+            self,
+            pattern,
+            tags=[],
+            max_depth=5,
+            create_index=True
+            ):
         """Request the objects from the database
 
         Args:
