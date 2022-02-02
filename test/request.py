@@ -29,6 +29,8 @@ class TestRequest(Request):
     def __init__(self, db_conn, col_name):
         super().__init__(db_conn, datetime.now())
         self.test_index(col_name)
+        self.test_pattern_compil()
+        self.like_test()
 
     def test_index(self, col_name):
         aql = 'FOR doc IN %s filter doc.a.b==1 RETURN doc' % (col_name)
@@ -42,7 +44,6 @@ class TestRequest(Request):
         aql = """FOR doc IN %s filter doc.d.b>=1 
             AND (doc.d.d.c==2 OR doc.e.n.n<2 AND (doc.e.n!=2)) RETURN doc""" % (col_name)
         self.test_one_index(col_name, aql)
-        self.test_pattern_compil()
 
     def test_one_index(self, col_name, aql):
         print('testing with : ', aql)
@@ -125,6 +126,26 @@ class TestRequest(Request):
                 assert(except_str in str(result))
             else:
                 assert(result)
+    
+    def like_test(self):
+        feed = Feed(self.db_conn, 'like_test', storage_paradigm=TIME_BASED)
+        id = Identity(name='PowerRangers', identity_class='group')
+        feed.insert_stix_object_in_arango([id])
+        pattern = "[identity:name LIKE '%Rangers']"
+        results = self.request_one_feed(feed, pattern)
+        assert(len(results))
+        
+        pattern = "[identity:name LIKE 'P%s']"
+        results = self.request_one_feed(feed, pattern)
+        assert(len(results))
+        
+        pattern = "[identity:name LIKE '_owerRangers']"
+        results = self.request_one_feed(feed, pattern)
+        assert(len(results))
+        
+        pattern = "[identity:name LIKE 'aaa%']"
+        results = self.request_one_feed(feed, pattern)
+        assert(len(results) == 0)
 
 def remove_tests():
     colname = 'meta_history'
