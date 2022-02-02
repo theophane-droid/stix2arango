@@ -62,51 +62,51 @@ class TestRequest(Request):
             print(str_explain)
 
     def test_pattern_compil(self):
-        # self.test_one_pattern_compil('[ipv4-addr:value = ""', except_error=True)
+        self.test_one_pattern_compil('[ipv4-addr:value = ""', except_error=True)
           
-        # # # quote test
-        # self.test_one_pattern_compil(
-        #     '[ipv4-addr:value = "mushroom"]',
-        #     except_str='(f.value == "mushroom") AND f.type == "ipv4-addr"'
-        # )
-        # self.test_one_pattern_compil(
-        #     "[ipv4-addr:value = 'mushroom']",
-        #     except_str="""(f.value == 'mushroom') AND f.type == \"ipv4-addr\""""
-        # )
-        # # simple quote with special chars
-        # self.test_one_pattern_compil(
-        #     "[ipv4-addr:value = '   #=(% %*=><$=\"']", 
-        #     except_str="(f.value == '   #=(% %*=><$=\"') AND f.type == \"ipv4-addr\""
-        # )
-        # # double quote with special chars
-        # self.test_one_pattern_compil(
-        #     '[ipv4-addr:value = "   #=(% %*=><$=\'"]', 
-        #     except_str='(f.value == "   #=(% %*=><$=\'") AND f.type == \"ipv4-addr\"'
-        # )
-        # # parentheisis-ception
-        # self.test_one_pattern_compil(
-        #     '([[[ipv4-addr:value = "mushroom"]]])'
-        # )
-        # # unbalanced parenthesis
-        # self.test_one_pattern_compil(
-        #     '([([ipv4-addr:value = "mushroom"]]])',
-        #     except_error=True
-        # )
-        # # space in pattern
-        # self.test_one_pattern_compil(
-        #     '[[ ipv4-addr:value        = "mushroom "   ]]',
-        #     except_str='(f.value == "mushroom ") AND f.type == "ipv4-addr"'
+        # # quote test
+        self.test_one_pattern_compil(
+            '[ipv4-addr:value = "mushroom"]',
+            except_str='(f.value == "mushroom") AND f.type == "ipv4-addr"'
+        )
+        self.test_one_pattern_compil(
+            "[ipv4-addr:value = 'mushroom']",
+            except_str="""(f.value == 'mushroom') AND f.type == \"ipv4-addr\""""
+        )
+        # simple quote with special chars
+        self.test_one_pattern_compil(
+            "[ipv4-addr:value = '   #=(% %*=><$=\"']", 
+            except_str="(f.value == '   #=(% %*=><$=\"') AND f.type == \"ipv4-addr\""
+        )
+        # double quote with special chars
+        self.test_one_pattern_compil(
+            '[ipv4-addr:value = "   #=(% %*=><$=\'"]', 
+            except_str='(f.value == "   #=(% %*=><$=\'") AND f.type == \"ipv4-addr\"'
+        )
+        # parentheisis-ception
+        self.test_one_pattern_compil(
+            '([[[ipv4-addr:value = "mushroom"]]])'
+        )
+        # unbalanced parenthesis
+        self.test_one_pattern_compil(
+            '([([ipv4-addr:value = "mushroom"]]])',
+            except_error=True
+        )
+        # space in pattern
+        self.test_one_pattern_compil(
+            '[[ ipv4-addr:value        = "mushroom "   ]]',
+            except_str='(f.value == "mushroom ") AND f.type == "ipv4-addr"'
             
-        # )
-        # # space in pattern 2
-        # self.test_one_pattern_compil(
-        #     '[[ ipv4-addr :value        = "mushroom "   ]]',
-        #     except_error=True
-        # )
+        )
+        # space in pattern 2
+        self.test_one_pattern_compil(
+            '[[ ipv4-addr :value        = "mushroom "   ]]',
+            except_error=True
+        )
 
         # logical operator + comparaison operator
         self.test_one_pattern_compil(
-            '[ipv4-addr:x_value1 <= 2 AND (ipv4-addr:value = "mushroom" OR ipv4-addr:x_value2 > 1)]',
+            '[ipv4-addr:x_value1 <= 2 AND (ipv4-addr:value != "mushroom" OR ipv4-addr:x_value2 > 1)]',
         )
     def test_one_pattern_compil(self, pattern, except_error=False, except_str=None):
         print('\ntesting with : ', pattern, '  ', end='')
@@ -120,11 +120,11 @@ class TestRequest(Request):
                 print('error : ', e)
         else:
             result = pattern_compil(pattern)
+            print('pattern_compil : ', result)
             if except_str:
                 assert(except_str in str(result))
             else:
                 assert(result)
-            print('pattern_compil : ', result)
 
 def remove_tests():
     colname = 'meta_history'

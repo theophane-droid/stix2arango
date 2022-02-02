@@ -2,10 +2,15 @@ from pyArango.query import AQLQuery
 
 from stix2arango.feed import Feed
 from stix2arango.storage import get_collection_name
-from stix2arango.exceptions import (PatternAlreadyContainsType,
-                                    MalformatedExpression,
-                                    FieldCanNotBeCalculatedBy)
+from stix2arango.exceptions import (
+    PatternAlreadyContainsType,
+    MalformatedExpression,
+    FieldCanNotBeCalculatedBy)
 from stix2arango import stix_modifiers
+from stix2arango.utils import (
+    remove_redondant_parenthesis,
+    check_if_expression_is_balanced,
+    remove_unused_space)
 import uuid
 
 SPECIAL_CHARS = '[()]=<>'
@@ -111,58 +116,6 @@ def compare_compile(compare_string):
         return field + ' ' + operator + ' ' + value
 
 
-def check_if_pattern_is_balanced(pattern):
-    open_tup = tuple('([')
-    close_tup = tuple(')]')
-    map = dict(zip(open_tup, close_tup))
-    queue = []
-    is_in_string = False
-    string_opener = ''
-
-    for i in pattern:
-        if i in STRING_CHARS:
-            if not is_in_string:
-                is_in_string = True
-                string_opener = i
-                queue.append(string_opener)
-            elif i == string_opener:
-                is_in_string = False
-                if not queue or string_opener != queue.pop():
-                    return False
-        elif i in open_tup and not is_in_string:
-            queue.append(map[i])
-        elif i in close_tup and not is_in_string:
-            if not queue or i != queue.pop():
-                return False
-    if not queue:
-        return True
-    else:
-        return False
-
-
-def remove_unused_space(aql):
-    is_in_string = False
-    string_opener = ''
-    last_char = None
-    result = ''
-    for c in aql:
-        if c in STRING_CHARS:
-            if not is_in_string:
-                is_in_string = True
-                string_opener = c
-            elif c == string_opener:
-                is_in_string = False
-        if c in ')]' and not is_in_string and last_char and last_char == ' ':
-            result = result[:-1]
-        if c == ' ' and not is_in_string:
-            if last_char and (last_char != ' ' and last_char not in '(['):
-                result += ' '
-        else:
-            result += c
-        last_char = c
-    return result
-
-
 def pattern_compil(expression):
     """Compile a stix pattern to AQL comparaison expression
 
@@ -175,7 +128,7 @@ def pattern_compil(expression):
     Returns:
         str: AQL expression
     """
-    if not(check_if_pattern_is_balanced(expression)):
+    if not(check_if_expression_is_balanced(expression)):
         raise MalformatedExpression(expression)
     current_word = ''
     is_in_string = False
@@ -221,7 +174,10 @@ def pattern_compil(expression):
         while len(compare) > 0 and compare[-1] in SEPARATOR_CHARS:
             compare = compare[:-1]
         result = result.replace(compare, compiled_compare)
-    return remove_unused_space(result + ' AND f.type == "' + type + '"')
+    if not type:
+        raise MalformatedExpression(expression)
+    aql_expression = result + ' AND f.type == "' + type + '"'
+    return remove_unused_space(remove_redondant_parenthesis(aql_expression))
 
 
 class Request:
