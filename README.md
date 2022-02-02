@@ -1,6 +1,16 @@
 # stix2arango
 
-A Python lib to store STIX2.1 in arangodb.
+Stix2arango provide an abstration layer on arangoDB to store and query stix2 objects.
+
+stix2arango has numerous features:
+- Native support for stix2 objects
+- Pre-process stix2 objects before storing them
+- Organization of data by information provider (feed)
+- Tag feeds with one or more labels
+- Query stix2 objects using stix2 patterning language
+- Automatic index creation to optimize query performance
+- Ability to manage your data over time and to request knowledge at a specified date
+- Clean up your old data
 
 ## 1. Insert STIX2.1 in arangoDB
 
@@ -48,7 +58,7 @@ When you request a feed object, the feed's storage paradigm is used.
 
 You can request data using stix patterning syntax.
 Currently, the following stix patterning features are supported :
-- Comparaison operator : `<, <=, >, >=, =, !=`
+- Comparaison operator : `<, <=, >, >=, =, !=, LIKE`
 - Logical operator : `AND, OR`
 
 Thus you can use patterning like :
