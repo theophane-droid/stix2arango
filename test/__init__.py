@@ -1,17 +1,21 @@
-import sys, os
-
 # ensure that we use the current version of the package
+import sys
+import os
 sys.path.insert(0, '/app')
 
-from stix2 import IPv4Address, AutonomousSystem, Identity, Relationship, Incident, IPv6Address
+from stix2 import IPv4Address, AutonomousSystem, Identity
+from stix2 import Relationship, Incident, IPv6Address
 from pyArango.connection import *
 from pyArango.theExceptions import CreationError
-
 from stix2arango.feed import Feed, vaccum
 from stix2arango.request import Request
 from stix2arango.storage import GROUPED, GROUPED_BY_MONTH, TIME_BASED
 from stix2arango import stix_modifiers
 from datetime import datetime
+
+from test import request
+
+
 def get_database():
     password = os.environ['ARANGO_ROOT_PASSWORD']
     url = os.environ['ARANGO_URL']
@@ -60,13 +64,13 @@ if __name__ == "__main__":
 
     print('\n\n\n\n\n> 2. Getting data')
     request = Request(db_conn, datetime.now())
-    results = request.request("""[    identity:name = 'My grand mother']""",
-                        tags=['time_based'])
+    results = request.request("  [ipv4-addr:x_ip  =   '97.8.8.8' ]  ",
+                        tags=['time_based'], max_depth=1)
     print(results)
 
     request = Request(db_conn, datetime.now())
-    results = request.request("  [ipv4-addr:value  =   '97.8.8.8' ]  ",
-                        tags=['time_based'], max_depth=1)
+    results = request.request("""[    identity:name = 'My grand mother']""",
+                        tags=['time_based'])
     print(results)
 
     feed = Feed(db_conn, 'patterntestfeed', tags=['pattern'], storage_paradigm=TIME_BASED, )

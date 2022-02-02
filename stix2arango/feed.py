@@ -22,7 +22,7 @@ def vaccum(db_conn):
                 date,
                 doc['storage_paradigm'],
                 vaccum_date
-                )
+            )
             if feed.vaccum_date != 0 and feed.vaccum_date <= actual_date:
                 # remove doc
                 doc.delete()
@@ -73,7 +73,7 @@ class Feed:
                 Defaults to [].
             date (datetime, optional): date of the next insertion. \
                 Defaults to now.
-            storage_paradigm (int, optional): method to store/request objects. \
+            storage_paradigm (int, optional): method to store/request objects.
                 Defaults to TIME_BASED.
             vaccum_date (datetime, optional): date of the feed deletion. \
                 Defaults to 90 days.
@@ -136,6 +136,7 @@ class Feed:
         Args:
             l_object (list): the list of stix objects to insert
         """
+        self.db_conn.reload()
         if not self.feed_already_saved:
             self.__save_feed()
             self.feed_already_saved = True
