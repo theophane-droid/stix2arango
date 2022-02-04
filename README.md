@@ -143,6 +143,17 @@ Launch a vaccum :
 $ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password changeme --action vaccum
 ```
 
+Take a snapshot of database :
+```bash
+$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password changeme --action snapshot --snapshot_dir /tmp/snapshot
+```
+Warning : snapshot only takes last inserted data for each feed.
+
+Restore a snapshot :
+```bash
+$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password changeme --action restore --snapshot_dir /tmp/snapshot
+```
+
 ## 6. Run test
 
 Please install docker. Then, you can run test with the following commands : 
