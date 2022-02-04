@@ -177,7 +177,9 @@ class Feed:
         return doc
 
     def __dict__(self):
-        storage_paradigm_id = STORAGE_PARADIGMS.index(self.storage_paradigm) + 1
+        storage_paradigm_id = STORAGE_PARADIGMS.index(
+            self.storage_paradigm
+            ) + 1
         return {
             'feed_name': self.feed_name,
             'date': int(self.date.timestamp()),

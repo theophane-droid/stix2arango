@@ -14,7 +14,7 @@ from stix2arango import stix_modifiers
 from datetime import datetime
 
 from test import request
-
+from test import storage
 
 def get_database():
     password = os.environ['ARANGO_ROOT_PASSWORD']

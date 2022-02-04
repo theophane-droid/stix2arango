@@ -53,3 +53,23 @@ class FieldCanNotBeCalculatedBy(Exception):
     def __str__(self):
         return """Field {} can not be calculated by stixmodifier {}""" \
             .format(self.field, self.pattern)
+
+
+class ArangoDumpNotInstalled(Exception):
+    """
+    Exception raised when the arangodump is not installed
+    and trying to dump database
+    """
+    def __str__(self):
+        return """ArangoDump is not installed"""
+
+
+class ArangoDumpFailed(Exception):
+    """
+    Exception raised when the arangodump failed
+    """
+    def __init(self, reason):
+        self.reason = reason
+
+    def __str__(self):
+        return """ArangoDump failed because {}""".format(self.reason)

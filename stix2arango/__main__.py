@@ -13,7 +13,8 @@ from urllib.parse import unquote
 
 from stix2arango.version import __version__, __author__
 from stix2arango.request import Request
-from stix2arango.feed import vaccum
+from stix2arango.feed import vaccum, Feed
+from stix2arango.storage import snapshot, snapshot_restore
 
 app = Flask(__name__)
 db_conn = None
@@ -90,16 +91,20 @@ if __name__ == '__main__':
     parser.add_argument(
         '--action',
         default='web_server',
-        help='can be web_server or vaccum'
+        help='can be web_server, vaccum, snapshot or restore'
+    )
+    parser.add_argument(
+        '--snapshot_dir',
+        help='Directory of the snapshot to take/restore'
     )
     args = parser.parse_args()
-    if args.host == '':
+    if not args.host:
         print('Please provide a host for the database')
         exit(1)
-    if args.db == '':
+    if not args.db:
         print('Please provide a database name')
         exit(1)
-    if args.password == '':
+    if not args.password:
         print('Please provide a password for the database')
         exit(1)
     url = 'http://{}:{}'.format(args.host, args.port)
@@ -113,3 +118,29 @@ if __name__ == '__main__':
         app.run(host='0.0.0.0', port=622)
     elif args.action == 'vaccum':
         vaccum(db_conn)
+    elif args.action == 'snapshot':
+        if not args.snapshot_dir:
+            print('Please provide a snapshot directory')
+            exit(1)
+        feeds = Feed.get_last_feeds(db_conn, datetime.now())
+        snapshot(
+            args.host,
+            args.port,
+            args.user,
+            args.password,
+            args.db,
+            args.snapshot_dir,
+            feeds
+        )
+    elif args.action == 'restore':
+        if not args.snapshot_dir:
+            print('Please provide a snapshot directory')
+            exit(1)
+        snapshot_restore(
+            args.host,
+            args.port,
+            args.user,
+            args.password,
+            args.db,
+            args.snapshot_dir
+        )
