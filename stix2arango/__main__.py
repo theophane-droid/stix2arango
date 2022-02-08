@@ -97,6 +97,17 @@ if __name__ == '__main__':
         '--snapshot_dir',
         help='Directory of the snapshot to take/restore'
     )
+    parser.add_argument(
+        '--https-cert',
+        default=None,
+        help='Path to the HTTPS certificate for web_server'
+    )
+    parser.add_argument(
+        '--web-port',
+        default=622,
+        help='Port for the web server'
+    )
+
     args = parser.parse_args()
     if not args.host:
         print('Please provide a host for the database')
@@ -115,7 +126,7 @@ if __name__ == '__main__':
     )
     db_conn = conn[args.db]
     if args.action == 'web_server':
-        app.run(host='0.0.0.0', port=622)
+        app.run(host='0.0.0.0', port=args.web_port)
     elif args.action == 'vaccum':
         vaccum(db_conn)
     elif args.action == 'snapshot':

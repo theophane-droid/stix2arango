@@ -11,6 +11,7 @@ stix2arango has numerous features:
 - Automatic index creation to optimize query performance
 - Ability to manage your data over time and to request knowledge at a specified date
 - Clean up your old data
+- Take/restore snapshots of your data
 
 ## 1. Insert STIX2.1 in arangoDB
 
@@ -23,7 +24,7 @@ from stix2arango.storage import GROUPED, GROUPED_BY_MONTH, TIME_BASED
 db_conn = my_arango_db_connection
 
 # create a TIME_BASED Feed object
-feed = Feed(db_conn, 'grouped_by_month_feed', tags=['paynoattention', 'dogstory'], storage_paradigm=GROUPED_BY_MONTH)
+feed = Feed(db_conn, 'grouped_by_month_feed', tags=['paynoattention', 'dogstory'],  storage_paradigm=GROUPED_BY_MONTH)
 
 # create Stix2.1 objects
 identity = Identity(name='My dog', identity_class='individual')
