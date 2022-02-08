@@ -153,3 +153,4 @@ cython_debug/
 # personnal files :
 notes.md
 doc_build/
+cert/

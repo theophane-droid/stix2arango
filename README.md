@@ -134,25 +134,32 @@ You can run the stix2arango.feed.vaccum method to clean database from feed objec
 ## 5. The stix2arango module
 stix2arango can be used as a module, to provide a simple web wrapper for stix2arango or to launch the vaccum method.
 
-Launch a web server : 
+Launch a web server :
 ```bash
-$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password changeme --action web_server
+$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password arangopasswd --action web_server
+```
+
+Launch a web server on https with self-signed certificate :
+```bash
+$ mkdir cert
+$ openssl req -x509 -newkey rsa:4096 -nodes -out cert/cert.pem -keyout cert/key.pem -days 365
+$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password arangopasswd --action web_server --web_port 443 --ssl_key /cert/key.pem --ssl_cert /cert/cert.pem
 ```
 
 Launch a vaccum :
 ```bash
-$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password changeme --action vaccum
+$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password arangopasswd --action vaccum
 ```
 
 Take a snapshot of database :
 ```bash
-$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password changeme --action snapshot --snapshot_dir /tmp/snapshot
+$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password arangopasswd* --action snapshot --snapshot_dir /tmp/snapshot
 ```
 Warning : snapshot only takes last inserted data for each feed.
 
 Restore a snapshot :
 ```bash
-$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password changeme --action restore --snapshot_dir /tmp/snapshot
+$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password arangopasswd --action restore --snapshot_dir /tmp/snapshot
 ```
 
 ## 6. Run test
@@ -161,5 +168,5 @@ Please install docker. Then, you can run test with the following commands :
 
 ```
 docker build env -t stix2arango
-docker run -it --network host -e ARANGO_ROOT_PASSWORD=changeme -e ARANGO_URL='http://localhost:8529' -v $(pwd):/app stix2arango 
+docker run -it --network host -e ARANGO_ROOT_PASSWORD=arangopasswd -e ARANGO_URL='http://localhost:8529' -v $(pwd):/app stix2arango 
 ```
