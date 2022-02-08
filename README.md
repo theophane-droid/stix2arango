@@ -143,7 +143,7 @@ Launch a web server on https with self-signed certificate :
 ```bash
 $ mkdir cert
 $ openssl req -x509 -newkey rsa:4096 -nodes -out cert/cert.pem -keyout cert/key.pem -days 365
-$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password arangopasswd --action web_server --web_port 443 --ssl_key /cert/key.pem --ssl_cert /cert/cert.pem
+$ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password arangopasswd --action web_server --web_port 443 --ssl_key cert/key.pem --ssl_cert cert/cert.pem
 ```
 
 Launch a vaccum :
