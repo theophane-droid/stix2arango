@@ -1,3 +1,6 @@
+from pyArango.connection import Connection
+from random import randint
+
 SPECIAL_CHARS = '[()]=<>'
 STRING_CHARS = '"\''
 SEPARATOR_CHARS = ' \t'
@@ -87,3 +90,34 @@ def remove_unused_space(aql):
             result += c
         last_char = c
     return result
+
+class ArangoUser:
+    def __init__(self, name, password, arangoURL):
+        self.id = randint(0, 1000000)
+        self.name = name
+        self.password = password
+        self.url = arangoURL
+
+    def to_json(self):        
+        return {"name": self.name,
+                "email": self.email}
+
+    def is_authenticated(self):
+        try:
+            Connection(
+                username=self.name,
+                password=self.password,
+                arangoURL=self.url
+            )
+            return True
+        except:
+            return False
+
+    def is_active(self):  
+        return True           
+
+    def is_anonymous(self):
+        return False          
+
+    def get_id(self):         
+        return str(self.id)

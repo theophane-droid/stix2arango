@@ -162,7 +162,23 @@ Restore a snapshot :
 $ python3 -m stix2arango --host arango_host --port arango_port --db stix2arango --user root --password arangopasswd --action restore --snapshot_dir /tmp/snapshot
 ```
 
-## 6. Run test
+## 6. Web api
+
+After you launched the web server as showed in 5, you can request data using api.
+
+First authenticate on api using arangoDB creds :
+```bash
+$ curl -k -v -d "name=root&password=arangorootpassword" https://localhost:443/login -X POST
+```
+
+Then you get the session cookie and you can request data :
+```bash
+curl -k -b "session=session_id" "https://localhost:443/request?pattern=[ipv4-addr:value = '9.9.9.9']&tags=time_based&depth=3&timestamp=1644336051" -X GET
+```
+Only pattern argument is required. Results are returned in json.
+
+
+## 7. Run test
 
 Please install docker. Then, you can run test with the following commands : 
 

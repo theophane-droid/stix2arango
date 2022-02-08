@@ -6,4 +6,4 @@ RUN dpkg -i /tmp/arangodb3-client_3.8.4-1_amd64.deb
 
 RUN pip install git+https://github.com/theophane-droid/stix2arango.git
 
-CMD python3 /app/test/test01.py
+RUN pip install flask_login

@@ -5,6 +5,7 @@ if 'TEST' in os.environ != '':
     sys.path.insert(0, '/app')
 
 from flask import Flask, json, request
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import flask
 import argparse
 from pyArango.connection import Connection
@@ -15,24 +16,27 @@ from stix2arango.version import __version__, __author__
 from stix2arango.request import Request
 from stix2arango.feed import vaccum, Feed
 from stix2arango.storage import snapshot, snapshot_restore
+from stix2arango.utils import ArangoUser
 
 app = Flask(__name__)
 db_conn = None
+arangoURL = None
+login_manager = LoginManager()
+authenticated_users = {}
 
 
 """
     Simple wrapper around stix2arango requests.
 """
 
-
 @app.route('/')
+@login_required
 def home():
     return {'version': __version__}
 
-
 @app.route('/request', methods=['GET'])
+@login_required
 def request_for_stix():
-    # request with stix2arango
     pattern = request.args.get('pattern')
     timestamp = request.args.get('timestamp')
     tags = request.args.get('tags')
@@ -54,12 +58,51 @@ def request_for_stix():
     r = Request(db_conn, date)
     return {'results': r.request(unquote(pattern), tags, max_depth=depth)}
 
-
 @app.route('/vaccum', methods=['GET'])
+@login_required
 def vaccum_database():
     vaccum(db_conn)
     return {'results': 'ok'}
 
+
+@app.route('/login', methods=['POST'])
+def login():
+    global authenticated_users
+    if 'name' in request.form and 'password' in request.form:
+        user = ArangoUser(
+            request.form['name'], 
+            request.form['password'],
+            arangoURL
+        )
+        if user.is_authenticated():
+            authenticated_users[int(user.id)] = user
+            login_user(user)
+            flask.flash('Logged in successfully.')
+            next = flask.request.args.get('next')
+            return flask.redirect(next or flask.url_for('home'))
+        else:
+            return {'error': 'Invalid username or password'}
+    return {'results': 'please post name & password to authenticate'}
+
+@login_manager.user_loader
+def load_user(user_id):
+    return authenticated_users[int(user_id)]
+
+def launch_web_server(args):
+    global login_manager
+    login_manager.init_app(app)
+    app.config['SECRET_KEY'] = os.urandom(30).hex()
+    if args.ssl_cert and args.ssl_key:
+        app.run(
+            host='0.0.0.0',
+            port=args.web_port,
+            ssl_context=(args.ssl_cert, args.ssl_key)
+        )
+    else:
+        app.run(
+            host='0.0.0.0',
+            port=args.web_port
+        )
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
@@ -123,25 +166,15 @@ if __name__ == '__main__':
     if not args.password:
         print('Please provide a password for the database')
         exit(1)
-    url = 'http://{}:{}'.format(args.host, args.port)
+    arangoURL = 'http://{}:{}'.format(args.host, args.port)
     conn = Connection(
         username=args.user,
         password=args.password,
-        arangoURL=url
+        arangoURL=arangoURL
     )
     db_conn = conn[args.db]
     if args.action == 'web_server':
-        if args.ssl_cert and args.ssl_key:
-            app.run(
-                host='0.0.0.0',
-                port=args.web_port,
-                ssl_context=(args.ssl_cert, args.ssl_key)
-            )
-        else:
-            app.run(
-                host='0.0.0.0',
-                port=args.web_port
-            )
+        launch_web_server(args)
     elif args.action == 'vaccum':
         vaccum(db_conn)
     elif args.action == 'snapshot':
