@@ -1,3 +1,5 @@
+from threading import Thread
+
 from pyArango.query import AQLQuery
 
 from stix2arango.feed import Feed
@@ -179,6 +181,32 @@ def pattern_compil(expression):
     return remove_unused_space(remove_redondant_parenthesis(aql_expression))
 
 
+class ThreadedRequestFeed(Thread):
+    def __init__(
+        self, 
+        request, 
+        feed,
+        pattern,
+        max_depth=5,
+        create_index=True,
+        limit=-1):
+        Thread.__init__(self)
+        self.request = request
+        self.feed = feed
+        self.pattern = pattern
+        self.max_depth = max_depth
+        self.create_index = create_index
+        self.limit = limit
+
+    def run(self):
+        self.results = self.request.request_one_feed(
+            self.feed,
+            self.pattern,
+            self.max_depth,
+            self.create_index,
+            self.limit
+        )
+
 class Request:
     """Class to manage a request to the database"""
 
@@ -251,6 +279,33 @@ class Request:
                 results.append(self.__remove_arango_fields(vertex))
         return results
 
+    def request_one_feed_threaded(
+            self,
+            feed,
+            pattern,
+            max_depth=5,
+            create_index=True,
+            limit=-1
+            ):
+        """Request objects from a feed using a thread
+
+        Args:
+            Cf request_one_feed method
+
+        Returns:
+            ThreadedRequestFeed: the thread in which request is launched
+        """
+        thread = ThreadedRequestFeed(
+            self,
+            feed,
+            pattern,
+            max_depth,
+            create_index,
+            limit
+        )
+        thread.start()
+        return thread
+
     def request(
             self,
             pattern,
@@ -274,14 +329,18 @@ class Request:
         feeds = Feed.get_last_feeds(self.db_conn, self.date)
         feeds = [feed for feed in feeds if set(tags).issubset(set(feed.tags))]
         results = []
+        l_threads = []
         for feed in feeds:
-            feed_result = self.request_one_feed(
+            threaded_request = self.request_one_feed_threaded(
                 feed,
                 pattern,
                 max_depth=max_depth,
                 create_index=create_index
             )
-            results.extend(feed_result)
+            l_threads.append(threaded_request)
+        for thread in l_threads:
+            thread.join()
+            results.append(thread.results)
         return results
 
     def _create_index_from_query(self, col_name, query):
