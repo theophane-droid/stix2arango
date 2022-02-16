@@ -133,15 +133,15 @@ class TestRequest(Request):
         feed.insert_stix_object_in_arango([id])
         pattern = "[identity:name LIKE '%Rangers']"
         results = self.request_one_feed(feed, pattern)
-        assert(len(results))
+        assert(len(results) > 0)
         
         pattern = "[identity:name LIKE 'P%s']"
         results = self.request_one_feed(feed, pattern)
-        assert(len(results))
+        assert(len(results) > 0)
         
         pattern = "[identity:name LIKE '_owerRangers']"
         results = self.request_one_feed(feed, pattern)
-        assert(len(results))
+        assert(len(results) > 0)
         
         pattern = "[identity:name LIKE 'aaa%']"
         results = self.request_one_feed(feed, pattern)

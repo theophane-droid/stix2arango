@@ -117,17 +117,18 @@ def compare_compile(compare_string):
         return field + ' ' + operator + ' ' + value
 
 
-def pattern_compil(expression):
+def pattern_compil(expression, return_type=False):
     """Compile a stix pattern to AQL comparaison expression
 
     Args:
         expression (str): stix pattern to compile
+        return_type (bool) : return_type of requested object
 
     Raises:
         PatternAlreadyContainsType: when contains different types of SDOs
 
     Returns:
-        str: AQL expression
+        str: AQL expression or type of requested object is return_type is True
     """
     if not(check_if_expression_is_balanced(expression)):
         raise MalformatedExpression(expression)
@@ -178,7 +179,10 @@ def pattern_compil(expression):
     if not type:
         raise MalformatedExpression(expression)
     aql_expression = result + ' AND f.type == "' + type + '"'
-    return remove_unused_space(remove_redondant_parenthesis(aql_expression))
+    if return_type:
+        return type
+    else:
+        return remove_unused_space(remove_redondant_parenthesis(aql_expression))
 
 
 class ThreadedRequestFeed(Thread):
@@ -327,7 +331,9 @@ class Request:
             list: objects matching pattern and their related(depth limited)
         """
         feeds = Feed.get_last_feeds(self.db_conn, self.date)
-        feeds = [feed for feed in feeds if set(tags).issubset(set(feed.tags))]
+        request_obj_type = pattern_compil(pattern, return_type=True)
+        feeds = [feed for feed in feeds if set(tags).issubset(set(feed.tags)) and \
+                (int(feed.version.split('.')[0]) == 0 or request_obj_type in feed.inserted_stix_types)]
         results = []
         l_threads = []
         for feed in feeds:
@@ -340,7 +346,7 @@ class Request:
             l_threads.append(threaded_request)
         for thread in l_threads:
             thread.join()
-            results.append(thread.results)
+            results += thread.results
         return results
 
     def _create_index_from_query(self, col_name, query):
