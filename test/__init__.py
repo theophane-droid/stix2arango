@@ -66,13 +66,12 @@ if __name__ == "__main__":
     request = Request(db_conn, datetime.now())
     results = request.request("  [ipv4-addr:x_ip  =   '97.8.8.8' ]  ",
                         tags=['time_based'], max_depth=1)
-
-    assert(len(results) == 4)
+    assert(len(results) == 5)
 
     request = Request(db_conn, datetime.now())
     results = request.request("""[    identity:name = 'My grand mother']""",
                         tags=['time_based'])
-    assert(len(results) == 6)
+    assert(len(results) == 3)
 
 
 

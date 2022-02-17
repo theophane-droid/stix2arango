@@ -192,7 +192,7 @@ class ThreadedRequestFeed(Thread):
         request, 
         feed,
         pattern,
-        max_depth=5,
+        max_depth=1,
         create_index=True,
         limit=-1):
         Thread.__init__(self)
@@ -240,7 +240,7 @@ class Request:
             self,
             feed,
             pattern,
-            max_depth=5,
+            max_depth=1,
             create_index=True,
             limit=-1
             ):
@@ -250,7 +250,7 @@ class Request:
             feed (stix2arango.feed.Feed): the feed to request
             pattern (str): the stix2.1 pattern
             max_depth (int, optional): graph traversal depth limit.\
-                Defaults to 5.
+                Defaults to 1.
             create_index (bool, optional): create index based on search.\
                 Defaults to True.
             limit (int, optional): limit the number of results.
@@ -275,13 +275,18 @@ class Request:
         # create
         results = []
         for r in matched_results:
+            r = r.getStore()
             vertexes = self._graph_traversal(r['_id'], max_depth=max_depth)
+            r['x_feed'] = feed.feed_name
+            r['x_tags'] = feed.tags
+            results.append(r)
             for vertex in vertexes:
                 vertex = vertex.getStore()
                 vertex = self.__remove_arango_fields(vertex)
                 vertex['x_feed'] = feed.feed_name
                 vertex['x_tags'] = feed.tags
                 results.append(self.__remove_arango_fields(vertex))
+                
         return results
 
     def request_one_feed_threaded(
@@ -315,7 +320,7 @@ class Request:
             self,
             pattern,
             tags=[],
-            max_depth=5,
+            max_depth=1,
             create_index=True
             ):
         """Request the objects from the database
@@ -325,7 +330,7 @@ class Request:
             tags (list, optional): query feeds carrying all tags. \
                 Defaults to [].
             max_depth (int, optional): graph traversal depth limit. \
-                Defaults to 5.
+                Defaults to 1.
             create_index (bool, optional): create index based on search.\
                 Defaults to True.
         Returns:
@@ -370,20 +375,22 @@ class Request:
             )
         return index_name
 
-    def _graph_traversal(self, id, max_depth=5):
+    def _graph_traversal(self, id, max_depth=1):
         """Traverse the graph to get the related objects
 
         Args:
             id (str): the id of the object to start the traversal
             max_depth (int, optional): graph traversal depth limit. \
-                Defaults to 5.
+                Defaults to 1.
 
         Returns:
             list: the related objects
         """
         col_name = id.split('/')[0]
-        aql = """FOR v, e in 0..{} ANY '{}' {} RETURN v"""\
-            .format(max_depth, id, 'edge_' + col_name)
+        aql = """FOR v, e, p in 1..2 ANY '{}' {} 
+                PRUNE COUNT(p.vertices) == 2 and p.vertices[1].type!="relationship"
+                RETURN v"""\
+            .format(id, 'edge_' + col_name, id)
         return self.db_conn.AQLQuery(aql, raw_results=True)
 
     def _extract_field_path(self, node):
