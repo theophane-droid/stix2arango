@@ -11,7 +11,8 @@ from stix2arango import stix_modifiers
 from stix2arango.utils import (
     remove_redondant_parenthesis,
     check_if_expression_is_balanced,
-    remove_unused_space)
+    remove_unused_space,
+    merge_obj_list)
 import uuid
 
 SPECIAL_CHARS = '[()]=<>'
@@ -347,6 +348,7 @@ class Request:
         for thread in l_threads:
             thread.join()
             results += thread.results
+        merge_obj_list(results)
         return results
 
     def _create_index_from_query(self, col_name, query):

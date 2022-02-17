@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from stix2arango.storage import TIME_BASED, GROUPED, STORAGE_PARADIGMS
 from stix2arango import stix_modifiers
+from stix2arango.utils import update_uid_for_obj_list
 from stix2arango import version
 
 

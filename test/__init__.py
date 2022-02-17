@@ -15,6 +15,7 @@ from datetime import datetime
 
 from test import request
 from test import storage
+from test import utils
 
 def get_database():
     password = os.environ['ARANGO_ROOT_PASSWORD']
@@ -29,7 +30,7 @@ def get_database():
 if __name__ == "__main__":
     db_conn = get_database()
 
-    print('\n\n> 1. Inserting data')
+    print('\n\n> Inserting data')
     # test with time-base paradigm
     autonomous_system = AutonomousSystem(number=1234, name='Google')
     ipv4 = IPv4Address(value='97.8.8.8', belongs_to_refs=[autonomous_system.id])
@@ -61,11 +62,12 @@ if __name__ == "__main__":
     feeds = Feed.get_last_feeds(db_conn, datetime(2022, 12, 12))
     print('OK')
 
-    print('\n\n> 2. Getting data')
+    print('\n\n> Getting data')
     request = Request(db_conn, datetime.now())
     results = request.request("  [ipv4-addr:x_ip  =   '97.8.8.8' ]  ",
                         tags=['time_based'], max_depth=1)
-    assert(len(results) == 5)
+
+    assert(len(results) == 4)
 
     request = Request(db_conn, datetime.now())
     results = request.request("""[    identity:name = 'My grand mother']""",
@@ -88,7 +90,7 @@ if __name__ == "__main__":
     print('OK')
 
 
-    print('\n\n> 3. Vaccum test')
+    print('\n\n> Vaccum test')
     feed = Feed(db_conn, 'vaccumentest', tags=['vaccum'], storage_paradigm=TIME_BASED, vaccum_date=datetime.fromtimestamp(10))
     ipv4 = IPv4Address(value='97.8.1.0/24')
     feed.insert_stix_object_in_arango([ipv4])

@@ -68,8 +68,18 @@ class ArangoDumpFailed(Exception):
     """
     Exception raised when the arangodump failed
     """
-    def __init(self, reason):
+    def __init__(self, reason):
         self.reason = reason
 
     def __str__(self):
         return """ArangoDump failed because {}""".format(self.reason)
+
+class MergeFailedException(Exception):
+    """
+    Exception raised when stix2arango failed to merge two stix objects
+    """
+    def __init__(self, id):
+        self.id = id
+
+    def __str__(self):
+        return """Failed to merge two objects with id %s""" % (id)
