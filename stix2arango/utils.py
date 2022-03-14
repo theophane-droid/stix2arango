@@ -1,5 +1,10 @@
+from random import randint, Random
+import uuid
+
 from pyArango.connection import Connection
-from random import randint
+from stix2 import parse
+
+from stix2arango.exceptions import MergeFailedException
 
 SPECIAL_CHARS = '[()]=<>'
 STRING_CHARS = '"\''
@@ -90,6 +95,85 @@ def remove_unused_space(aql):
             result += c
         last_char = c
     return result
+
+
+def update_id_for_sdo(sdo):
+    """Update sdo id with a reproducible uuid base on fields
+
+    Args:
+        sdo (sdo): Stix sdo object
+
+    Returns:
+        sdo: updated sdo stix object
+    """
+    if sdo.type == 'relationship':
+        raise TypeError('object should not be a relationship')
+
+    sdo = dict(sdo)
+    exclude_field = ['created', 'modified', 'spec_version', 'id']
+    seed = {k:v for k,v in sdo.items() \
+        if 'ref' not in k and k[:2] != 'x_' and k not in exclude_field}
+    rd = Random()
+    rd.seed(str(seed))
+
+    _id = uuid.UUID(int=rd.getrandbits(128), version=4)
+    sdo['id'] = sdo['type'] + "--" + str(_id)
+    return parse(sdo, allow_custom=True)
+
+
+def update_uid_for_obj_list(l_obj):
+    """Replace sdo id by deterministic id and replace id in relations and references
+
+    Args:
+        l_obj (list) : list of stix objects
+    
+    Returns:
+        list: list of updated sdo stix object
+    """
+    id_transform = {}
+    updated_l_obj = []
+    for sdo in l_obj:
+        if sdo.type != 'relationship':
+            old_id = sdo.id
+            sdo = update_id_for_sdo(sdo)
+            new_id = sdo.id
+            id_transform[old_id] = new_id
+        updated_l_obj.append(dict(sdo))
+    for obj in updated_l_obj:
+        for key, value in obj.items():
+            if key.endswith('ref'):
+                if value in id_transform:
+                    obj[key] = id_transform[value]
+            if key.endswith('refs'):
+                obj[key] = [ id_transform[v] if v in id_transform  else v for v in obj[key] ]
+    return [parse(obj) for obj in updated_l_obj]
+
+
+
+def merge_obj(obj1, obj2):
+    for key, value in obj2.items():
+        if key not in obj1:
+            obj1[key] = value
+        elif type(value) == list:
+            obj1[key] += [v for v in obj2[key] if v not in obj1[key]]
+        elif value != obj1[key]:
+            raise MergeFailedException(obj1['type'])
+    return obj1
+
+def merge_obj_list(l_obj):
+    i = 0
+    while i < len(l_obj):
+        j = i + 1
+        while j < len(l_obj):
+            if l_obj[i]['id'] == l_obj[j]['id']:
+                try:
+                    l_obj[i] = merge_obj(l_obj[i], l_obj[j])
+                    del l_obj[j]
+                except MergeFailedException:
+                    pass
+            j += 1
+        i += 1
+    return
 
 class ArangoUser:
     def __init__(self, name, password, arangoURL):

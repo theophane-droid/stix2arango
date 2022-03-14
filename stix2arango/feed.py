@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 
 from stix2arango.storage import TIME_BASED, GROUPED, STORAGE_PARADIGMS
 from stix2arango import stix_modifiers
-from stix2arango.version import __version__
+from stix2arango.utils import update_uid_for_obj_list
+from stix2arango import version
 
 
 def vaccum(db_conn):
@@ -94,7 +95,7 @@ class Feed:
             self.vaccum_date = vaccum_date
         else:  # if vaccum_date is not set, set it to date + 90 days
             self.vaccum_date = self.date + timedelta(days=90)
-        self.version = __version__
+        self.version = version.__version__
 
     def __insert_one_object(self, object, colname):
         """Insert a single object in the database.

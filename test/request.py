@@ -33,6 +33,7 @@ class TestRequest(Request):
         self.like_test()
 
     def test_index(self, col_name):
+        print('\n\n> Test index creation')
         aql = 'FOR doc IN %s filter doc.a.b==1 RETURN doc' % (col_name)
         self.test_one_index(col_name, aql)
         aql = 'FOR doc IN %s filter doc.a.b==1 OR doc.a.b.c==2 RETURN doc' % (col_name)
@@ -44,15 +45,16 @@ class TestRequest(Request):
         aql = """FOR doc IN %s filter doc.d.b>=1 
             AND (doc.d.d.c==2 OR doc.e.n.n<2 AND (doc.e.n!=2)) RETURN doc""" % (col_name)
         self.test_one_index(col_name, aql)
+        print('OK')
+
 
     def test_one_index(self, col_name, aql):
-        print('testing with : ', aql)
         query = self.db_conn.AQLQuery(aql)
         str_explain = str(query.explain())
         try:
             assert('filter' in str_explain)
         except AssertionError:
-            print(query.explain())
+            pass
         self._create_index_from_query(col_name, aql)
         aql = 'FOR doc IN %s filter doc.a.b==1 RETURN doc' % (col_name)
         query = self.db_conn.AQLQuery(aql)
@@ -60,9 +62,9 @@ class TestRequest(Request):
         try:
             assert(not 'filter' in str_explain)
         except:
-            print(str_explain)
-
+            pass
     def test_pattern_compil(self):
+        print('\n\n> Test pattern compil')
         self.test_one_pattern_compil('[ipv4-addr:value = ""', except_error=True)
           
         # # quote test
@@ -109,8 +111,9 @@ class TestRequest(Request):
         self.test_one_pattern_compil(
             '[ipv4-addr:x_value1 <= 2 AND (ipv4-addr:value != "mushroom" OR ipv4-addr:x_value2 > 1)]',
         )
+        print('OK')
+
     def test_one_pattern_compil(self, pattern, except_error=False, except_str=None):
-        print('\ntesting with : ', pattern, '  ', end='')
         if except_error:
             try:
                 pattern_compil(pattern)
@@ -118,34 +121,35 @@ class TestRequest(Request):
             except (PatternAlreadyContainsType,
                     MalformatedExpression,
                     FieldCanNotBeCalculatedBy) as e:
-                print('error : ', e)
+                    pass
         else:
             result = pattern_compil(pattern)
-            print('pattern_compil : ', result)
             if except_str:
                 assert(except_str in str(result))
             else:
                 assert(result)
     
     def like_test(self):
+        print('\n\n> Like test')
         feed = Feed(self.db_conn, 'like_test', storage_paradigm=TIME_BASED)
         id = Identity(name='PowerRangers', identity_class='group')
         feed.insert_stix_object_in_arango([id])
         pattern = "[identity:name LIKE '%Rangers']"
         results = self.request_one_feed(feed, pattern)
-        assert(len(results))
+        assert(len(results) > 0)
         
         pattern = "[identity:name LIKE 'P%s']"
         results = self.request_one_feed(feed, pattern)
-        assert(len(results))
+        assert(len(results) > 0)
         
         pattern = "[identity:name LIKE '_owerRangers']"
         results = self.request_one_feed(feed, pattern)
-        assert(len(results))
+        assert(len(results) > 0)
         
         pattern = "[identity:name LIKE 'aaa%']"
         results = self.request_one_feed(feed, pattern)
         assert(len(results) == 0)
+        print('OK')
 
 def remove_tests():
     colname = 'meta_history'

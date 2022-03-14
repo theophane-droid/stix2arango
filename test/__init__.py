@@ -15,6 +15,7 @@ from datetime import datetime
 
 from test import request
 from test import storage
+from test import utils
 
 def get_database():
     password = os.environ['ARANGO_ROOT_PASSWORD']
@@ -29,7 +30,7 @@ def get_database():
 if __name__ == "__main__":
     db_conn = get_database()
 
-    print('\n\n\n\n\n> 1. Inserting data')
+    print('\n\n> Inserting data')
     # test with time-base paradigm
     autonomous_system = AutonomousSystem(number=1234, name='Google')
     ipv4 = IPv4Address(value='97.8.8.8', belongs_to_refs=[autonomous_system.id])
@@ -59,34 +60,36 @@ if __name__ == "__main__":
     feed.insert_stix_object_in_arango([identity, course_of_action, relation])
 
     feeds = Feed.get_last_feeds(db_conn, datetime(2022, 12, 12))
-    for feed in feeds:
-        print(feed)
+    print('OK')
 
-    print('\n\n\n\n\n> 2. Getting data')
+    print('\n\n> Getting data')
     request = Request(db_conn, datetime.now())
     results = request.request("  [ipv4-addr:x_ip  =   '97.8.8.8' ]  ",
                         tags=['time_based'], max_depth=1)
-    print(results)
+    assert(len(results) == 5)
 
     request = Request(db_conn, datetime.now())
     results = request.request("""[    identity:name = 'My grand mother']""",
                         tags=['time_based'])
-    print(results)
+    assert(len(results) == 3)
 
-    feed = Feed(db_conn, 'patterntestfeed', tags=['pattern'], storage_paradigm=TIME_BASED, )
+
+
+    feed = Feed(db_conn, 'patterntestfeed', tags=['patterntestfeed'], storage_paradigm=TIME_BASED, )
     ipv4 = IPv4Address(value='97.8.1.0/24')
     feed.insert_stix_object_in_arango([ipv4])
     request = Request(db_conn, datetime.now())
-    results = request.request("[ipv4-addr:value='8.8.8.8']",
-                        tags=['pattern'])
-    print(results)
+    results = request.request("[ipv4-addr:x_ip='97.8.1.8']",
+                        tags=['patterntestfeed'])
+    assert(len(results) == 1)
 
     results = request.request("[ malware:name  = 'Adware'  ]",
                         tags=['pattern'])
-    print(results)
+    assert(len(results) == 0)
+    print('OK')
 
 
-    print('\n\n\n\n\n> 3. Vaccum test')
+    print('\n\n> Vaccum test')
     feed = Feed(db_conn, 'vaccumentest', tags=['vaccum'], storage_paradigm=TIME_BASED, vaccum_date=datetime.fromtimestamp(10))
     ipv4 = IPv4Address(value='97.8.1.0/24')
     feed.insert_stix_object_in_arango([ipv4])
@@ -95,4 +98,4 @@ if __name__ == "__main__":
     for feed in feeds:
         if feed.feed_name == 'vaccumentest':
             raise Exception('Vaccum failed')
-    print('Vaccum done')
+    print('OK')

@@ -115,6 +115,10 @@ def snapshot(
 
     col_list = [feed.storage_paradigm.get_collection_name(feed)
                 for feed in feed_list]
+    
+    # ! quick fix, meta_history was not dumped
+    col_list.append('meta_history')
+    
     for col in col_list:
         command += " --collection {}".format(col)
     r = os.system(command)

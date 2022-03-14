@@ -1,3 +1,5 @@
+from threading import Thread
+
 from pyArango.query import AQLQuery
 
 from stix2arango.feed import Feed
@@ -9,7 +11,8 @@ from stix2arango import stix_modifiers
 from stix2arango.utils import (
     remove_redondant_parenthesis,
     check_if_expression_is_balanced,
-    remove_unused_space)
+    remove_unused_space,
+    merge_obj_list)
 import uuid
 
 SPECIAL_CHARS = '[()]=<>'
@@ -115,17 +118,18 @@ def compare_compile(compare_string):
         return field + ' ' + operator + ' ' + value
 
 
-def pattern_compil(expression):
+def pattern_compil(expression, return_type=False):
     """Compile a stix pattern to AQL comparaison expression
 
     Args:
         expression (str): stix pattern to compile
+        return_type (bool) : return_type of requested object
 
     Raises:
         PatternAlreadyContainsType: when contains different types of SDOs
 
     Returns:
-        str: AQL expression
+        str: AQL expression or type of requested object is return_type is True
     """
     if not(check_if_expression_is_balanced(expression)):
         raise MalformatedExpression(expression)
@@ -176,8 +180,37 @@ def pattern_compil(expression):
     if not type:
         raise MalformatedExpression(expression)
     aql_expression = result + ' AND f.type == "' + type + '"'
-    return remove_unused_space(remove_redondant_parenthesis(aql_expression))
+    if return_type:
+        return type
+    else:
+        return remove_unused_space(remove_redondant_parenthesis(aql_expression))
 
+
+class ThreadedRequestFeed(Thread):
+    def __init__(
+        self, 
+        request, 
+        feed,
+        pattern,
+        max_depth=1,
+        create_index=True,
+        limit=-1):
+        Thread.__init__(self)
+        self.request = request
+        self.feed = feed
+        self.pattern = pattern
+        self.max_depth = max_depth
+        self.create_index = create_index
+        self.limit = limit
+
+    def run(self):
+        self.results = self.request.request_one_feed(
+            self.feed,
+            self.pattern,
+            self.max_depth,
+            self.create_index,
+            self.limit
+        )
 
 class Request:
     """Class to manage a request to the database"""
@@ -207,7 +240,7 @@ class Request:
             self,
             feed,
             pattern,
-            max_depth=5,
+            max_depth=1,
             create_index=True,
             limit=-1
             ):
@@ -217,7 +250,7 @@ class Request:
             feed (stix2arango.feed.Feed): the feed to request
             pattern (str): the stix2.1 pattern
             max_depth (int, optional): graph traversal depth limit.\
-                Defaults to 5.
+                Defaults to 1.
             create_index (bool, optional): create index based on search.\
                 Defaults to True.
             limit (int, optional): limit the number of results.
@@ -242,20 +275,52 @@ class Request:
         # create
         results = []
         for r in matched_results:
+            r = r.getStore()
             vertexes = self._graph_traversal(r['_id'], max_depth=max_depth)
+            r['x_feed'] = feed.feed_name
+            r['x_tags'] = feed.tags
+            results.append(r)
             for vertex in vertexes:
                 vertex = vertex.getStore()
                 vertex = self.__remove_arango_fields(vertex)
                 vertex['x_feed'] = feed.feed_name
                 vertex['x_tags'] = feed.tags
                 results.append(self.__remove_arango_fields(vertex))
+                
         return results
+
+    def request_one_feed_threaded(
+            self,
+            feed,
+            pattern,
+            max_depth=5,
+            create_index=True,
+            limit=-1
+            ):
+        """Request objects from a feed using a thread
+
+        Args:
+            Cf request_one_feed method
+
+        Returns:
+            ThreadedRequestFeed: the thread in which request is launched
+        """
+        thread = ThreadedRequestFeed(
+            self,
+            feed,
+            pattern,
+            max_depth,
+            create_index,
+            limit
+        )
+        thread.start()
+        return thread
 
     def request(
             self,
             pattern,
             tags=[],
-            max_depth=5,
+            max_depth=1,
             create_index=True
             ):
         """Request the objects from the database
@@ -265,23 +330,30 @@ class Request:
             tags (list, optional): query feeds carrying all tags. \
                 Defaults to [].
             max_depth (int, optional): graph traversal depth limit. \
-                Defaults to 5.
+                Defaults to 1.
             create_index (bool, optional): create index based on search.\
                 Defaults to True.
         Returns:
             list: objects matching pattern and their related(depth limited)
         """
         feeds = Feed.get_last_feeds(self.db_conn, self.date)
-        feeds = [feed for feed in feeds if set(tags).issubset(set(feed.tags))]
+        request_obj_type = pattern_compil(pattern, return_type=True)
+        feeds = [feed for feed in feeds if set(tags).issubset(set(feed.tags)) and \
+                (int(feed.version.split('.')[0]) == 0 or request_obj_type in feed.inserted_stix_types)]
         results = []
+        l_threads = []
         for feed in feeds:
-            feed_result = self.request_one_feed(
+            threaded_request = self.request_one_feed_threaded(
                 feed,
                 pattern,
                 max_depth=max_depth,
                 create_index=create_index
             )
-            results.extend(feed_result)
+            l_threads.append(threaded_request)
+        for thread in l_threads:
+            thread.join()
+            results += thread.results
+        merge_obj_list(results)
         return results
 
     def _create_index_from_query(self, col_name, query):
@@ -303,20 +375,22 @@ class Request:
             )
         return index_name
 
-    def _graph_traversal(self, id, max_depth=5):
+    def _graph_traversal(self, id, max_depth=1):
         """Traverse the graph to get the related objects
 
         Args:
             id (str): the id of the object to start the traversal
             max_depth (int, optional): graph traversal depth limit. \
-                Defaults to 5.
+                Defaults to 1.
 
         Returns:
             list: the related objects
         """
         col_name = id.split('/')[0]
-        aql = """FOR v, e in 0..{} ANY '{}' {} RETURN v"""\
-            .format(max_depth, id, 'edge_' + col_name)
+        aql = """FOR v, e, p in 1..2 ANY '{}' {} 
+                PRUNE COUNT(p.vertices) == 2 and p.vertices[1].type!="relationship"
+                RETURN v"""\
+            .format(id, 'edge_' + col_name, id)
         return self.db_conn.AQLQuery(aql, raw_results=True)
 
     def _extract_field_path(self, node):
