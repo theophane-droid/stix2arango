@@ -53,8 +53,8 @@ class Feed:
     feed_already_saved = False
     edge_to_insert = []
     obj_inserted = {}
-    inserted_stix_types = []
     vaccum_date = None
+    key = None
 
     def __init__(
                     self,
@@ -98,6 +98,8 @@ class Feed:
             self.vaccum_date = self.date + timedelta(days=90)
         if inserted_stix_types:
             self.inserted_stix_types = inserted_stix_types
+        else:
+            self.inserted_stix_types = []
         self.version = version.__version__
 
     def __insert_one_object(self, object, colname):
@@ -116,6 +118,7 @@ class Feed:
 
         if object.type not in self.inserted_stix_types:
             self.inserted_stix_types.append(object.type)
+            self.__update_inserted_object_list()
 
         try:
             self.db_conn.createCollection(className='Collection', name=colname)
@@ -152,6 +155,12 @@ class Feed:
             self.__insert_one_object(object, colname)
         self.__insert_edge_in_arango()
 
+    def __update_inserted_object_list(self):
+        _dict = self.__dict__()
+        _dict['_key'] = self.key
+        aql = """REPLACE %s in meta_history """ % (_dict)
+        self.db_conn.AQLQuery(aql)
+
     def __insert_edge_in_arango(self):
         """Insert the edges in the database."""
         colname = 'edge_' + self.storage_paradigm.get_collection_name(self)
@@ -178,6 +187,7 @@ class Feed:
         col = self.db_conn[colname]
         doc = col.createDocument(self.__dict__())
         doc.save()
+        self.key = doc._key
         return doc
 
     def __dict__(self):
