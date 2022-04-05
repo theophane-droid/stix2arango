@@ -177,6 +177,15 @@ curl -k -b "session=session_id" "https://localhost:443/request?pattern=[ipv4-add
 ```
 Only pattern argument is required. Results are returned in json.
 
+### Disable index creation
+
+By default, every request will create an arrangodb index to optimize future queries. To prevent this, you can add the parameter named no_index_creation and set it to 1.
+
+Exemple :
+
+```bash
+curl -k -b "session=session_id" "https://localhost:443/request?pattern=[ipv4-addr:value = '9.9.9.9']&no_index_creation=1" -X GET
+```
 
 ## 7. Run test
 
