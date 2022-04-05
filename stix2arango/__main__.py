@@ -41,6 +41,11 @@ def request_for_stix():
     timestamp = request.args.get('timestamp')
     tags = request.args.get('tags')
     depth = request.args.get('depth')
+    no_index_creation = request.args.get('no_index_creation')
+    if no_index_creation == '1':
+        no_index_creation = True
+    else:
+        no_index_creation = False
     if timestamp:
         date = datetime.fromtimestamp(int(timestamp))
     else:
@@ -56,7 +61,14 @@ def request_for_stix():
     if not pattern:
         return {'error': 'pattern is required'}
     r = Request(db_conn, date)
-    return {'results': r.request(unquote(pattern), tags, max_depth=depth)}
+    return {
+        'results': r.request(
+            unquote(pattern), 
+            tags, 
+            max_depth=depth,
+            create_index=not(no_index_creation)
+            )
+        }
 
 @app.route('/vaccum', methods=['GET'])
 @login_required

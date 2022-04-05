@@ -63,7 +63,8 @@ class Feed:
                     tags=[],
                     date=None,
                     storage_paradigm=TIME_BASED,
-                    vaccum_date=None
+                    vaccum_date=None,
+                    inserted_stix_types=[]
                 ):
         """Initialize a Feed object.
 
@@ -95,6 +96,8 @@ class Feed:
             self.vaccum_date = vaccum_date
         else:  # if vaccum_date is not set, set it to date + 90 days
             self.vaccum_date = self.date + timedelta(days=90)
+        if inserted_stix_types:
+            self.inserted_stix_types = inserted_stix_types
         self.version = version.__version__
 
     def __insert_one_object(self, object, colname):
@@ -216,12 +219,16 @@ class Feed:
                 vaccum_date = datetime.fromtimestamp(doc['vaccum_date'])
             else:
                 vaccum_date = 0
+            inserted_stix_types = None
+            if 'inserted_stix_types' in doc:
+                inserted_stix_types = doc['inserted_stix_types']
             feed = Feed(
                 db_conn,
                 doc['feed_name'],
                 doc['tags'], date,
                 doc['storage_paradigm'],
-                vaccum_date
+                vaccum_date,
+                inserted_stix_types=inserted_stix_types
                 )
             if date.timestamp() < d_before.timestamp():
                 if feed.feed_name not in results_feeds:

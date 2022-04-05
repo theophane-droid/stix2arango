@@ -211,9 +211,9 @@ class ThreadedRequestFeed(Thread):
         self.results = self.request.request_one_feed(
             self.feed,
             self.pattern,
-            self.max_depth,
-            self.create_index,
-            self.limit
+            max_depth = self.max_depth,
+            create_index = self.create_index,
+            limit = self.limit,
         )
 
 class Request:
@@ -344,6 +344,7 @@ class Request:
         """
         feeds = Feed.get_last_feeds(self.db_conn, self.date)
         request_obj_type = pattern_compil(pattern, return_type=True)
+        str_ = ''
         feeds = [feed for feed in feeds if set(tags).issubset(set(feed.tags)) and \
                 (int(feed.version.split('.')[0]) == 0 or request_obj_type in feed.inserted_stix_types)]
         results = []
