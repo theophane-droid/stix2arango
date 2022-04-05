@@ -99,3 +99,10 @@ if __name__ == "__main__":
         if feed.feed_name == 'vaccumentest':
             raise Exception('Vaccum failed')
     print('OK')
+
+    print('\n\n> Test index optimisation patch')
+    r = '[ipv4-addr:value = "mushroom" OR ipv4-addr:net != "red hot"]'
+    request = Request(db_conn, datetime.now())
+    results = request.request(r)
+    assert(len(results))
+    print('OK')

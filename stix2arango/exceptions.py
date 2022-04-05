@@ -81,5 +81,5 @@ class MergeFailedException(Exception):
     def __init__(self, id):
         self.id = id
 
-    def __str__(self):
+    def __str__(self) -> str:
         return """Failed to merge two objects with id %s""" % (id)

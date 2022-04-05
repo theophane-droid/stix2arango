@@ -82,11 +82,12 @@ def word_compil(word):
     return word, None
 
 
-def compare_compile(compare_string):
+def compare_compile(compare_string, operator_list=None):
     """Compile a comparaison expression from stix to AQL
 
     Args:
         compare_string (str): stix expression to compile
+        operator_list (list): an object to save used operator
 
     Raises:
         MalformatedExpression: if the expression is malformated
@@ -109,6 +110,8 @@ def compare_compile(compare_string):
         field = splitted_compare[-1]
         value = splitted_compare[0]
     stix_type = field.split(':')[0]
+    if operator_list != None:
+        operator_list.append(operator)
     try:
         return stix_modifiers[stix_type].eval(field, operator, value)
     except (FieldCanNotBeCalculatedBy, KeyError):
@@ -118,12 +121,13 @@ def compare_compile(compare_string):
         return field + ' ' + operator + ' ' + value
 
 
-def pattern_compil(expression, return_type=False):
+def pattern_compil(expression, return_type=False, operator_list=None):
     """Compile a stix pattern to AQL comparaison expression
 
     Args:
         expression (str): stix pattern to compile
         return_type (bool) : return_type of requested object
+        operator_list (list): an object to save used operator, default to None
 
     Raises:
         PatternAlreadyContainsType: when contains different types of SDOs
@@ -169,7 +173,7 @@ def pattern_compil(expression, return_type=False):
                 type = calculated_type
     result += current_word
     l_compare.append(current_compare)
-    l_compare_compiled = [compare_compile(c) for c in l_compare]
+    l_compare_compiled = [compare_compile(c, operator_list=operator_list) for c in l_compare]
     for compare, compiled_compare in zip(l_compare, l_compare_compiled):
         # ! quick fix : remove space before and after
         while len(compare) > 0 and compare[0] in SEPARATOR_CHARS:
@@ -266,12 +270,14 @@ class Request:
             aql_suffix = ' LIMIT %d RETURN f' % (limit)
         else:
             aql_suffix = ' RETURN f'
-        aql_middle = 'FILTER ' + pattern_compil(pattern)
+        operator_list = list()
+        aql_middle = 'FILTER ' + pattern_compil(pattern, operator_list=operator_list)
 
         aql = aql_prefix + aql_middle + aql_suffix
         matched_results = self.db_conn.AQLQuery(aql, raw_results=True)
-        if create_index:
-            self._create_index_from_query(col_name, aql)
+        if create_index :
+            if operator_list.count('=') == len(operator_list):
+                self._create_index_from_query(col_name, aql)
         # create
         results = []
         for r in matched_results:
@@ -354,7 +360,7 @@ class Request:
             thread.join()
             results += thread.results
         merge_obj_list(results)
-        return results
+        return results        
 
     def _create_index_from_query(self, col_name, query):
         """Create an index from a query
