@@ -110,11 +110,11 @@ def compare_compile(compare_string, operator_list=None):
         field = splitted_compare[-1]
         value = splitted_compare[0]
     stix_type = field.split(':')[0]
-    if operator_list != None:
-        operator_list.append(operator)
     try:
         return stix_modifiers[stix_type].eval(field, operator, value)
     except (FieldCanNotBeCalculatedBy, KeyError):
+        if operator_list != None:
+            operator_list.append(operator)
         field = 'f.' + '.'.join(field.split(':')[1:])
         if operator == '=':
             operator = '=='
@@ -206,6 +206,7 @@ class ThreadedRequestFeed(Thread):
         self.max_depth = max_depth
         self.create_index = create_index
         self.limit = limit
+        self.results = []
 
     def run(self):
         self.results = self.request.request_one_feed(

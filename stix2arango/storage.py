@@ -38,6 +38,11 @@ class Grouped(StorageParadigm):
         return feed.feed_name + '_grouped'
 
 
+class Static(StorageParadigm):
+    def get_collection_name(self, feed):
+        return feed.feed_name + '_static'
+
+
 class GroupedByTime(StorageParadigm):
     def __init__(self, nb_day):
         super().__init__()
@@ -60,13 +65,16 @@ GROUPED_BY_MONTH = GroupedByTime(30)
 GROUPED_BY_DAY = GroupedByTime(1)
 # every data inserted in a week goes in the same collection
 GROUPED_BY_WEEK = GroupedByTime(7)
+# every data inserted goes to the same collection but at each insertion, the collection is emptied
+STATIC = Static()
 
 STORAGE_PARADIGMS = [
     TIME_BASED,
     GROUPED,
     GROUPED_BY_MONTH,
     GROUPED_BY_DAY,
-    GROUPED_BY_WEEK
+    GROUPED_BY_WEEK,
+    STATIC
 ]
 
 

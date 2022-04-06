@@ -1,7 +1,8 @@
+from pickle import GLOBAL
 from pyArango.theExceptions import CreationError, DeletionError
 from datetime import datetime, timedelta
 
-from stix2arango.storage import TIME_BASED, GROUPED, STORAGE_PARADIGMS
+from stix2arango.storage import TIME_BASED, STATIC, STORAGE_PARADIGMS, GROUPED
 from stix2arango import stix_modifiers
 from stix2arango.utils import update_uid_for_obj_list
 from stix2arango import version
@@ -84,6 +85,7 @@ class Feed:
         self.feed_name = feed_name
         self.relations_to_insert = []
         self.tags = tags
+        self.has_been_emptied = False
         if date:
             self.date = date
         else:
@@ -101,6 +103,26 @@ class Feed:
         else:
             self.inserted_stix_types = []
         self.version = version.__version__
+
+    def drop(self):
+        """
+        Drop actual feed's collections
+        """
+        self.has_been_emptied = True
+        self.feed_already_saved = False
+        try:
+            col_name = self.storage_paradigm.get_collection_name(self)
+            self.db_conn[col_name].delete()
+            self.db_conn['edge_' + col_name].delete()
+        except KeyError:
+            pass
+        colname = 'meta_history'
+        col = self.db_conn[colname]
+        docs = col.fetchAll()
+
+        for doc in docs:
+            if doc['feed_name'] == self.feed_name:
+                doc.delete()
 
     def __insert_one_object(self, object, colname):
         """Insert a single object in the database.
@@ -146,6 +168,8 @@ class Feed:
         Args:
             l_object (list): the list of stix objects to insert
         """
+        if self.storage_paradigm == STATIC and not(self.has_been_emptied):
+            self.drop()
         self.db_conn.reload()
         if not self.feed_already_saved:
             self.__save_feed()
@@ -240,7 +264,8 @@ class Feed:
                 vaccum_date,
                 inserted_stix_types=inserted_stix_types
                 )
-            if date.timestamp() < d_before.timestamp():
+            if date.timestamp() < d_before.timestamp() or \
+                feed.storage_paradigm in [STATIC, GROUPED]:
                 if feed.feed_name not in results_feeds:
                     results_feeds[feed.feed_name] = feed
                 elif feed.date > results_feeds[feed.feed_name].date:
