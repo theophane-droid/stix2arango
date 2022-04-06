@@ -61,8 +61,8 @@ Finally, you can choose your storage paradigm using the characteristics of the f
 
 |                  | Time is important for request            | Time is not important for request |
 | ---------------- | ---------------------------------------- | --------------------------------- |
-| Live feed*       | GROUPED_BY_MONTH (or by day)             | GROUPED                           |
-| Versionned feed* | TIME_BASED                               | STATIC                            |
+| **Live feed***       | GROUPED_BY_MONTH (or by day)             | GROUPED                           |
+| **Versionned feed*** | TIME_BASED                               | STATIC                            |
 
 *A live feed will contains only new entries every day. A versionned feed will contains new entries and old entries. 
 
