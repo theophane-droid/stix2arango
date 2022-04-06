@@ -44,6 +44,7 @@ A Feed object represents a CTI feed. It can wear multiple tags. In the example a
 Insertion time is very important in stix2arango. You can use different storage paradigms :
    
     - GROUPED : feed objects are stored in a single collection
+    - STATIC : feed objects are stored in a single collection, all is removed when inserting new data
     - GROUPED_BY_MONTH : feed objects are stored in a collection per month
     - GROUPED_BY_DAY : feed objects are stored in a collection per day
     - TIME_BASED : feed objects are stored in a new collection at each new insertion date
@@ -51,9 +52,19 @@ Insertion time is very important in stix2arango. You can use different storage p
 When you request a feed object, the feed's storage paradigm is used. 
 
     - GROUPED : at each request every objets you inserted are consulted
+    - STATIC : at each request every objets you inserted are consulted
     - GROUPED_BY_MONTH : at each request every objets you inserted the last month are consulted
     - GROUPED_BY_DAY : at each request every objets you inserted the last day are consulted
     - TIME_BASED : at each request only the objets you inserted at the same timestamp are consulted
+
+Finally, you can choose your storage paradigm using the characteristics of the feed you want to add.
+
+|                  | Time is important for request            | Time is not important for request |
+| ---------------- | ---------------------------------------- | --------------------------------- |
+| Live feed*       | GROUPED_BY_MONTH (or by day)             | GROUPED                           |
+| Versionned feed* | TIME_BASED                               | STATIC                            |
+
+*A live feed will contains only new entries every day. A versionned feed will contains new entries and old entries. 
 
 ### 2. Query
 
