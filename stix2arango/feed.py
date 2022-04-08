@@ -1,7 +1,8 @@
+from pickle import GLOBAL
 from pyArango.theExceptions import CreationError, DeletionError
 from datetime import datetime, timedelta
 
-from stix2arango.storage import TIME_BASED, GROUPED, STORAGE_PARADIGMS
+from stix2arango.storage import TIME_BASED, STATIC, STORAGE_PARADIGMS, GROUPED
 from stix2arango import stix_modifiers
 from stix2arango.utils import update_uid_for_obj_list
 from stix2arango import version
@@ -53,8 +54,8 @@ class Feed:
     feed_already_saved = False
     edge_to_insert = []
     obj_inserted = {}
-    inserted_stix_types = []
     vaccum_date = None
+    key = None
 
     def __init__(
                     self,
@@ -63,7 +64,8 @@ class Feed:
                     tags=[],
                     date=None,
                     storage_paradigm=TIME_BASED,
-                    vaccum_date=None
+                    vaccum_date=None,
+                    inserted_stix_types=[]
                 ):
         """Initialize a Feed object.
 
@@ -83,6 +85,7 @@ class Feed:
         self.feed_name = feed_name
         self.relations_to_insert = []
         self.tags = tags
+        self.has_been_emptied = False
         if date:
             self.date = date
         else:
@@ -95,7 +98,31 @@ class Feed:
             self.vaccum_date = vaccum_date
         else:  # if vaccum_date is not set, set it to date + 90 days
             self.vaccum_date = self.date + timedelta(days=90)
+        if inserted_stix_types:
+            self.inserted_stix_types = inserted_stix_types
+        else:
+            self.inserted_stix_types = []
         self.version = version.__version__
+
+    def drop(self):
+        """
+        Drop actual feed's collections
+        """
+        self.has_been_emptied = True
+        self.feed_already_saved = False
+        try:
+            col_name = self.storage_paradigm.get_collection_name(self)
+            self.db_conn[col_name].delete()
+            self.db_conn['edge_' + col_name].delete()
+        except KeyError:
+            pass
+        colname = 'meta_history'
+        col = self.db_conn[colname]
+        docs = col.fetchAll()
+
+        for doc in docs:
+            if doc['feed_name'] == self.feed_name:
+                doc.delete()
 
     def __insert_one_object(self, object, colname):
         """Insert a single object in the database.
@@ -113,6 +140,7 @@ class Feed:
 
         if object.type not in self.inserted_stix_types:
             self.inserted_stix_types.append(object.type)
+            self.__update_inserted_object_list()
 
         try:
             self.db_conn.createCollection(className='Collection', name=colname)
@@ -140,6 +168,8 @@ class Feed:
         Args:
             l_object (list): the list of stix objects to insert
         """
+        if self.storage_paradigm == STATIC and not(self.has_been_emptied):
+            self.drop()
         self.db_conn.reload()
         if not self.feed_already_saved:
             self.__save_feed()
@@ -148,6 +178,12 @@ class Feed:
         for object in l_object:
             self.__insert_one_object(object, colname)
         self.__insert_edge_in_arango()
+
+    def __update_inserted_object_list(self):
+        _dict = self.__dict__()
+        _dict['_key'] = self.key
+        aql = """REPLACE %s in meta_history """ % (_dict)
+        self.db_conn.AQLQuery(aql)
 
     def __insert_edge_in_arango(self):
         """Insert the edges in the database."""
@@ -175,6 +211,7 @@ class Feed:
         col = self.db_conn[colname]
         doc = col.createDocument(self.__dict__())
         doc.save()
+        self.key = doc._key
         return doc
 
     def __dict__(self):
@@ -216,14 +253,19 @@ class Feed:
                 vaccum_date = datetime.fromtimestamp(doc['vaccum_date'])
             else:
                 vaccum_date = 0
+            inserted_stix_types = None
+            if 'inserted_stix_types' in doc:
+                inserted_stix_types = doc['inserted_stix_types']
             feed = Feed(
                 db_conn,
                 doc['feed_name'],
                 doc['tags'], date,
                 doc['storage_paradigm'],
-                vaccum_date
+                vaccum_date,
+                inserted_stix_types=inserted_stix_types
                 )
-            if date.timestamp() < d_before.timestamp():
+            if date.timestamp() < d_before.timestamp() or \
+                feed.storage_paradigm in [STATIC, GROUPED]:
                 if feed.feed_name not in results_feeds:
                     results_feeds[feed.feed_name] = feed
                 elif feed.date > results_feeds[feed.feed_name].date:

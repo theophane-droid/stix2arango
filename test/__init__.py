@@ -9,9 +9,9 @@ from pyArango.connection import *
 from pyArango.theExceptions import CreationError
 from stix2arango.feed import Feed, vaccum
 from stix2arango.request import Request
-from stix2arango.storage import GROUPED, GROUPED_BY_MONTH, TIME_BASED
+from stix2arango.storage import GROUPED, GROUPED_BY_MONTH, TIME_BASED, STATIC
 from stix2arango import stix_modifiers
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from test import request
 from test import storage
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     identity = Identity(name='My grand mother', identity_class='individual')
     relation = Relationship(source_ref=identity.id, target_ref=ipv4.id, relationship_type='attributed-to')
 
-    feed = Feed(db_conn, 'groupedfeed', tags=['paynoattention'], storage_paradigm=GROUPED)
+    feed = Feed(db_conn, 'groupedfeed', tags=['paynoattention', 'grouped'], storage_paradigm=GROUPED)
     feed.insert_stix_object_in_arango([ipv4, autonomous_system, identity, relation])
 
     # test with grouped-by-month paradigm
@@ -98,4 +98,41 @@ if __name__ == "__main__":
     for feed in feeds:
         if feed.feed_name == 'vaccumentest':
             raise Exception('Vaccum failed')
+    print('OK')
+
+    print('\n\n> Test index optimisation patch')
+    r = '[ipv4-addr:value = "mushroom" OR ipv4-addr:net != "red hot"]'
+    request = Request(db_conn, datetime.now())
+    results = request.request(r)
+    assert(len(results))
+    print('OK')
+
+    print('\n\n> Test patch #20')
+    feed = Feed(db_conn, 'patch20', tags=['patch20'], storage_paradigm=TIME_BASED)
+    ipv4 = IPv4Address(value='97.8.8.8', belongs_to_refs=[autonomous_system.id])
+    identity = Identity(name='My grand mother', identity_class='individual')
+    feed.insert_stix_object_in_arango([ipv4, identity])
+    autonomous_system = AutonomousSystem(number=1234, name='Google')
+    ipv4 = IPv4Address(value='97.8.8.8', belongs_to_refs=[autonomous_system.id])
+    feed.insert_stix_object_in_arango([ipv4, autonomous_system])
+    feeds = Feed.get_last_feeds(db_conn, datetime.now())
+    for f in feeds:
+        if f.feed_name == 'patch20':
+            assert(f.inserted_stix_types == ['ipv4-addr', 'identity', 'autonomous-system'])
+    print('OK')
+
+    print('\n\n> Test feature static paradigm #21')
+    feed = Feed(db_conn, 'staticfeed', storage_paradigm=STATIC)
+    feed.insert_stix_object_in_arango([ipv4])
+    col_name = feed.storage_paradigm.get_collection_name(feed)
+    assert(db_conn[col_name].count() == 1)
+    feed = Feed(db_conn, 'staticfeed', storage_paradigm=STATIC)
+    feed.insert_stix_object_in_arango([identity, autonomous_system])
+    assert(db_conn[col_name].count() == 2)
+    print('OK')
+
+    print('\n\n> Test grouped search before')
+    request = Request(db_conn, datetime.now() - timedelta(days=1000))
+    r = request.request("[identity:name = 'My grand mother']", tags=['grouped'])
+    assert(len(r))
     print('OK')

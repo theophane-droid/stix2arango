@@ -82,11 +82,12 @@ def word_compil(word):
     return word, None
 
 
-def compare_compile(compare_string):
+def compare_compile(compare_string, operator_list=None):
     """Compile a comparaison expression from stix to AQL
 
     Args:
         compare_string (str): stix expression to compile
+        operator_list (list): an object to save used operator
 
     Raises:
         MalformatedExpression: if the expression is malformated
@@ -112,18 +113,21 @@ def compare_compile(compare_string):
     try:
         return stix_modifiers[stix_type].eval(field, operator, value)
     except (FieldCanNotBeCalculatedBy, KeyError):
+        if operator_list != None:
+            operator_list.append(operator)
         field = 'f.' + '.'.join(field.split(':')[1:])
         if operator == '=':
             operator = '=='
         return field + ' ' + operator + ' ' + value
 
 
-def pattern_compil(expression, return_type=False):
+def pattern_compil(expression, return_type=False, operator_list=None):
     """Compile a stix pattern to AQL comparaison expression
 
     Args:
         expression (str): stix pattern to compile
         return_type (bool) : return_type of requested object
+        operator_list (list): an object to save used operator, default to None
 
     Raises:
         PatternAlreadyContainsType: when contains different types of SDOs
@@ -169,7 +173,7 @@ def pattern_compil(expression, return_type=False):
                 type = calculated_type
     result += current_word
     l_compare.append(current_compare)
-    l_compare_compiled = [compare_compile(c) for c in l_compare]
+    l_compare_compiled = [compare_compile(c, operator_list=operator_list) for c in l_compare]
     for compare, compiled_compare in zip(l_compare, l_compare_compiled):
         # ! quick fix : remove space before and after
         while len(compare) > 0 and compare[0] in SEPARATOR_CHARS:
@@ -202,14 +206,15 @@ class ThreadedRequestFeed(Thread):
         self.max_depth = max_depth
         self.create_index = create_index
         self.limit = limit
+        self.results = []
 
     def run(self):
         self.results = self.request.request_one_feed(
             self.feed,
             self.pattern,
-            self.max_depth,
-            self.create_index,
-            self.limit
+            max_depth = self.max_depth,
+            create_index = self.create_index,
+            limit = self.limit,
         )
 
 class Request:
@@ -266,12 +271,14 @@ class Request:
             aql_suffix = ' LIMIT %d RETURN f' % (limit)
         else:
             aql_suffix = ' RETURN f'
-        aql_middle = 'FILTER ' + pattern_compil(pattern)
+        operator_list = list()
+        aql_middle = 'FILTER ' + pattern_compil(pattern, operator_list=operator_list)
 
         aql = aql_prefix + aql_middle + aql_suffix
         matched_results = self.db_conn.AQLQuery(aql, raw_results=True)
-        if create_index:
-            self._create_index_from_query(col_name, aql)
+        if create_index :
+            if operator_list.count('=') == len(operator_list):
+                self._create_index_from_query(col_name, aql)
         # create
         results = []
         for r in matched_results:
@@ -338,6 +345,7 @@ class Request:
         """
         feeds = Feed.get_last_feeds(self.db_conn, self.date)
         request_obj_type = pattern_compil(pattern, return_type=True)
+        str_ = ''
         feeds = [feed for feed in feeds if set(tags).issubset(set(feed.tags)) and \
                 (int(feed.version.split('.')[0]) == 0 or request_obj_type in feed.inserted_stix_types)]
         results = []
@@ -354,7 +362,7 @@ class Request:
             thread.join()
             results += thread.results
         merge_obj_list(results)
-        return results
+        return results        
 
     def _create_index_from_query(self, col_name, query):
         """Create an index from a query
