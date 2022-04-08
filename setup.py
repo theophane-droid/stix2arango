@@ -13,6 +13,7 @@ setup(
         "pyArango >= 1.3.5",
         "flask >= 2.0.2",
         "pyopenssl >= 22.0.0",
-        "flask_login >= 0.5.0"
+        "flask_login >= 0.5.0",
+        "psycopg2 >= 2.9.3" 
     ]
 )
