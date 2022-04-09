@@ -154,3 +154,6 @@ cython_debug/
 notes.md
 doc_build/
 cert/
+
+# notes files
+notes.txt

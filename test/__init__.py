@@ -13,6 +13,7 @@ from stix2arango.storage import GROUPED, GROUPED_BY_MONTH, TIME_BASED, STATIC
 from stix2arango import stix_modifiers
 from datetime import datetime, timedelta
 
+from test import postgresql
 from test import request
 from test import storage
 from test import utils
