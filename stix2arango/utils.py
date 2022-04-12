@@ -167,7 +167,8 @@ def merge_obj_list(l_obj):
     while i < len(l_obj):
         j = i + 1
         while j < len(l_obj):
-            if l_obj[i]['id'] == l_obj[j]['id']:
+            if 'id' in l_obj[i] and 'id' in l_obj[j] and\
+                l_obj[i]['id'] == l_obj[j]['id']:
                 try:
                     l_obj[i] = merge_obj(l_obj[i], l_obj[j])
                     del l_obj[j]

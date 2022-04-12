@@ -32,6 +32,7 @@ def get_number_of_table_for_feed(feed_name, cursor):
     cursor.execute(s)
     results = [list(r)[1] for r in cursor.fetchall()]
     results = [r for r in results if r.startswith(feed_name) ]
+    cursor.close()
     return len(results)
 
 # can be debugged with :
@@ -80,21 +81,30 @@ PostgresOptimizer.postgres_conn.commit()
 
 request = Request(arango_conn, datetime.now())
 results = request.request("  [ipv4-addr:value  =   '97.8.8.8' ]  ",
-                       max_depth=-10, tags=['postgres'])
+                       max_depth=0, tags=['postgres'])
 
 print('\n\n\nresults:')
 for r in results:
     print('\t\t', r)
 print('END results')
 assert(len(results) == 1)
-
 print('OK')
+
+print('\n\n > Test remove object fields')
+obj1 = {'type': 'ipv4-addr', 'value' : 'coucou'}
+obj2 = {'type': 'domain-name', 'value' : 'coucou'}
+r = optimizer0.delete_fields_in_object(obj1)
+assert(r == {'type': 'ipv4-addr'})
+r = optimizer0.delete_fields_in_object(obj2)
+assert(r == {'type': 'domain-name', 'value': 'coucou'})
+obj3 = {'type': 'ipv4-addr', 'value2' : 'coucou'}
+r = optimizer0.delete_fields_in_object(obj3)
 
 
 print('\n\n> Postgres Vaccum test')
 feed = Feed(
     arango_conn, 
-    'posgres_vaccum_test', 
+    'v', 
     tags=['postgres'], 
     date=datetime.now(),
     storage_paradigm=TIME_BASED,
@@ -108,16 +118,10 @@ feed.insert_stix_object_in_arango([ipv4])
 vaccum(arango_conn)
 feeds = Feed.get_last_feeds(arango_conn, datetime(2022, 12, 12))
 for feed in feeds:
-    if feed.feed_name == 'vaccumentest':
+    if feed.feed_name == 'v':
         raise Exception('Vaccum failed')
-    table_name = optimizer0.table_name
-    sql = "select * from " + table_name
-    try:
-        cursor = PostgresOptimizer.postgres_conn.cursor()
-        cursor.execute(sql)
-        raise RuntimeError('vaccum failed !')
-    except (UndefinedTable, InFailedSqlTransaction):
-        cursor.close()
+    print('vaccum done !')
+
 print('OK')
 
 print('> static storage with optimizer')
@@ -128,9 +132,9 @@ feed = Feed(
     date=datetime.now(),
     storage_paradigm=STATIC
     )
-optimizer0 = PostgresOptimizer(optimized_field0)
-feed.optimizers.append(optimizer0)
-ipv4 = IPv4Address(value='97.8.1.0/24')
+optimizer2 = PostgresOptimizer('ipv4-addr:x_ip')
+feed.optimizers.append(optimizer2)
+ipv4 = IPv4Address(value='97.8.1.9')
 feed.insert_stix_object_in_arango([ipv4])
 
 feed = Feed(
@@ -140,10 +144,54 @@ feed = Feed(
     date=datetime.now(),
     storage_paradigm=STATIC
     )
-feed.optimizers.append(optimizer0)
-ipv4 = IPv4Address(value='97.8.1.9')
-feed.insert_stix_object_in_arango([ipv4])
+optimizer2 = PostgresOptimizer('ipv4-addr:x_ip')
+feed.optimizers.append(optimizer2)
+ipv4_1 = IPv4Address(value='97.8.1.0/24')
+ipv4_2 = IPv4Address(value='97.8.1.7')
+feed.insert_stix_object_in_arango([ipv4_1, ipv4_2])
 
 # check if the number of tables is 1
 PostgresOptimizer.postgres_conn.commit()
 assert(get_number_of_table_for_feed(feed.feed_name, PostgresOptimizer.postgres_conn.cursor()) == 1)
+
+print('> match ip on cidr')
+pattern = "[ipv4-addr:x_ip = '97.8.1.7']"
+# pattern = "[ipv4-addr:value  =   '97.8.8.8' ]"
+print(pattern)
+request = Request(arango_conn, datetime.now())
+results = request.request(pattern,
+                       max_depth=0, tags=['postgres'])
+print('results', results)
+assert(len(results) == 2)
+
+
+print('> Test obj merge in arango')
+feed = Feed(
+    arango_conn, 
+    'posgres_merge_test', 
+    tags=['postgres'], 
+    date=datetime.now(),
+    storage_paradigm=TIME_BASED
+    )
+optimizer = PostgresOptimizer('ipv4-addr:x_ip')
+feed.optimizers.append(optimizer)
+ip_list = []
+ip_list += [IPv4Address(value='97.8.1.6')]
+ip_list += [IPv4Address(value='97.8.1.7')]
+ip_list += [IPv4Address(value='97.8.1.8')]
+ip_list += [IPv4Address(value='97.8.1.9')]
+ip_list += [IPv4Address(value='97.8.1.10')]
+ip_list += [IPv4Address(value='97.8.1.11')]
+feed.insert_stix_object_in_arango(ip_list)
+
+aql = 'for el in ' + feed.storage_paradigm.get_collection_name(feed) + ' return el'
+results = arango_conn.AQLQuery(aql, raw_results=True)
+assert(len(results) == 1)
+sql = 'select * from ' + optimizer.table_name + ';'
+cursor = PostgresOptimizer.postgres_conn.cursor()
+cursor.execute(sql)
+results = cursor.fetchall()
+cursor.close()
+assert(len(results) == 6)
+
+print('OK')

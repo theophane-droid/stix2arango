@@ -94,3 +94,10 @@ class InvalidFeedName(Exception):
     """
     def __str__(self) -> str:
         return """Feed name can contain just letters, digits and underscore and its length should be less than 30"""
+
+class InvalidObjectForOptimizer(Exception):
+    def __init__(self, type):
+        self.type = type
+
+    def __str__(self) -> str:
+        return """Object of type %s cannot be indexed in this optimizer""" % (self.type)

@@ -1,3 +1,4 @@
+from platform import machine
 from re import match
 from threading import Thread
 
@@ -115,15 +116,15 @@ def compare_compile(
         field = splitted_compare[-1]
         value = splitted_compare[0]
     stix_type = field.split(':')[0]
+    if operator_list != None:
+        operator_list.append(operator)
+    if field_list != None:
+        field_list.append(field)
+    if value_list != None:
+        value_list.append(value)
     try:
         return stix_modifiers[stix_type].eval(field, operator, value)
     except (FieldCanNotBeCalculatedBy, KeyError):
-        if operator_list != None:
-            operator_list.append(operator)
-        if field_list != None:
-            field_list.append(field)
-        if value_list != None:
-            value_list.append(value)
         field = 'f.' + '.'.join(field.split(':')[1:])
         if operator == '=':
             operator = '=='
@@ -297,9 +298,19 @@ class Request:
         matched_results = None
         for optimizer in feed.optimizers:
             if len(field_list) == 1 and field_list[0] == optimizer.field:
-                id_results = optimizer.query(operator_list[0], value_list[0], feed)
-                aql2 = 'for el in %s filter el._key in %s return el' % (col_name, str(id_results))
-                matched_results = self.db_conn.AQLQuery(aql2, raw_results=True)
+                try:
+                    opti_results = optimizer.query(operator_list[0], value_list[0], feed)
+                except Exception as e:
+                    opti_results = {}
+                aql2 = 'for el in %s filter el._key in %s return el' % (col_name, str(list(opti_results.keys())))
+                aql_results = self.db_conn.AQLQuery(aql2, raw_results=True)
+                matched_results = []
+                for m in aql_results:
+                    # m = m.getStore()
+                    pg_obj = opti_results[m['_key']]
+                    for key in pg_obj:
+                        m[key] = pg_obj[key]
+                    matched_results.append(m)
         if not(matched_results):
             matched_results = self.db_conn.AQLQuery(aql, raw_results=True)
         if create_index :
@@ -396,7 +407,7 @@ class Request:
             thread.join()
             results += thread.results
         merge_obj_list(results)
-        return results        
+        return results
 
     def _create_index_from_query(self, col_name, query):
         """Create an index from a query

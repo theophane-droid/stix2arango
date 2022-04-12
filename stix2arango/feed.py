@@ -1,7 +1,9 @@
 from operator import is_
 from pickle import GLOBAL
 from pickletools import optimize
-from pyArango.theExceptions import CreationError, DeletionError
+from pyArango.theExceptions import (
+    CreationError,
+    DeletionError)
 from datetime import datetime, timedelta
 from stix2arango.postgresql import PostgresOptimizer
 
@@ -10,7 +12,7 @@ from stix2arango import stix_modifiers
 from stix2arango.utils import is_valid_feed_name
 from stix2arango import version
 from stix2arango.postgresql import PostgresOptimizer
-from stix2arango.exceptions import InvalidFeedName
+from stix2arango.exceptions import InvalidFeedName, InvalidObjectForOptimizer
 
 
 def vaccum(db_conn):
@@ -24,7 +26,7 @@ def vaccum(db_conn):
             vaccum_date = datetime.fromtimestamp(doc['vaccum_date'])
             try:
                 optimizers = doc['optimizers']
-            except:
+            except KeyError:
                 optimizers = None
             feed = Feed(
                 db_conn,
@@ -62,6 +64,7 @@ def vaccum(db_conn):
                             sql = 'drop table if exists ' + table_name
                             cursor = PostgresOptimizer.postgres_conn.cursor()
                             cursor.execute(sql)
+                            cursor.close()
                             PostgresOptimizer.postgres_conn.commit()
 
 class Feed:
@@ -95,6 +98,7 @@ class Feed:
             raise InvalidFeedName()
 
         self.obj_inserted = {}
+        self.optimized_obj = {}
         self.db_conn = db_conn
         self.feed_name = feed_name
         self.relations_to_insert = []
@@ -131,7 +135,6 @@ class Feed:
         self.feed_already_saved = False
         try:
             col_name = self.storage_paradigm.get_collection_name(self)
-            print('DROPING ', col_name)
             self.db_conn[col_name].delete()
             self.db_conn['edge_' + col_name].delete()
         except( KeyError, DeletionError):
@@ -154,37 +157,47 @@ class Feed:
         Returns:
             pyarango doc: the stored document
         """
-        if object.type in stix_modifiers:
-            args = dict(object)
-            object = stix_modifiers[object.type](**args)
-
-        if object.type not in self.inserted_stix_types:
-            self.inserted_stix_types.append(object.type)
+        object = dict(object)
+        object_save = dict(object)
+        if object['type'] not in self.inserted_stix_types:
+            self.inserted_stix_types.append(object['type'])
             self.__update_inserted_object_list()
+        
+        if len(self.optimizers) > 0:
+            for optimizer in self.optimizers:
+                object = optimizer.delete_fields_in_object(object)
+        elif object['type'] in stix_modifiers:
+            args = dict(object)
+            object = stix_modifiers[object['type']](**args)
 
         try:
             self.db_conn.createCollection(className='Collection', name=colname)
         except CreationError:
             pass
         col = self.db_conn[colname]
-        object = dict(object)
         # check if there if there is relation in the object
-        for key in object:
+        for key in object_save:
             suffix = key.split('_')[-1]
             if suffix == 'ref':
-                self.edge_to_insert.append((object['id'], object[key], key))
+                self.edge_to_insert.append((object_save['id'], object_save[key], key))
             elif suffix == 'refs':
-                for ref in object[key]:
-                    self.edge_to_insert.append((object['id'], ref, key))
+                for ref in object_save[key]:
+                    self.edge_to_insert.append((object_save['id'], ref, key))
         # save doc
-        doc = col.createDocument(object)
-        doc.save()
-        self.obj_inserted[object['id']] = doc
+        compact = str(object)
+        try:
+            doc = self.optimized_obj[compact]
+            self.obj_inserted[object_save['id']] = doc
+        except KeyError:
+            doc = col.createDocument(object)
+            doc.save()
+            self.optimized_obj[compact] = doc
+            self.obj_inserted[object_save['id']] = doc
         _id = doc['_id']
         for optimizer in self.optimizers:
             try:
-                optimizer.insert_stix_obj(object, _id, self)
-            except Exception as e:
+                optimizer.insert_stix_obj(object_save, _id, self)
+            except InvalidObjectForOptimizer:
                 pass
         return doc
 
@@ -197,7 +210,7 @@ class Feed:
         if self.storage_paradigm == STATIC and not(self.has_been_emptied):
             self.drop()
             for optimizer in self.optimizers:
-                optimizer.drop_table()
+                optimizer.drop_table(self.feed_name)
         self.db_conn.reload()
         if not self.feed_already_saved:
             self.__save_feed()
