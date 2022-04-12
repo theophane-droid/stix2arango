@@ -83,3 +83,14 @@ class MergeFailedException(Exception):
 
     def __str__(self) -> str:
         return """Failed to merge two objects with id %s""" % (id)
+
+
+class InvalidFeedName(Exception):
+    """Exception raised when feed_name contains a character different from lettes, digit or underscore,
+      or if its length is greater than 30       
+
+    Args:
+        Exception (_type_): _description_
+    """
+    def __str__(self) -> str:
+        return """Feed name can contain just letters, digits and underscore and its length should be less than 30"""

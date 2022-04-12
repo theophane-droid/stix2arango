@@ -110,7 +110,7 @@ if __name__ == "__main__":
 
     print('\n\n> Test patch #20')
     feed = Feed(db_conn, 'patch20', tags=['patch20'], storage_paradigm=TIME_BASED)
-    ipv4 = IPv4Address(value='97.8.8.8', belongs_to_refs=[autonomous_system.id])
+    ipv4 = IPv4Address(value='97.8.8.8')
     identity = Identity(name='My grand mother', identity_class='individual')
     feed.insert_stix_object_in_arango([ipv4, identity])
     autonomous_system = AutonomousSystem(number=1234, name='Google')
@@ -124,6 +124,7 @@ if __name__ == "__main__":
 
     print('\n\n> Test feature static paradigm #21')
     feed = Feed(db_conn, 'staticfeed', storage_paradigm=STATIC)
+    ipv4 = IPv4Address(value='97.8.8.8')
     feed.insert_stix_object_in_arango([ipv4])
     col_name = feed.storage_paradigm.get_collection_name(feed)
     assert(db_conn[col_name].count() == 1)

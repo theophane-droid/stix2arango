@@ -1,5 +1,6 @@
 from random import randint, Random
 import uuid
+import re
 
 from pyArango.connection import Connection
 from stix2 import parse
@@ -151,6 +152,7 @@ def update_uid_for_obj_list(l_obj):
 
 
 def merge_obj(obj1, obj2):
+    obj1 = dict(obj1)
     for key, value in obj2.items():
         if key not in obj1:
             obj1[key] = value
@@ -205,3 +207,7 @@ class ArangoUser:
 
     def get_id(self):         
         return str(self.id)
+
+
+def is_valid_feed_name(name):
+    return re.match('^[a-zA-Z0-9_]*$', name) and len(name) <= 30

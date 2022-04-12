@@ -37,3 +37,9 @@ class IPV4Modifier(IPv4Address):
             """.format(int(ip), int(ip), int(ip))
         else:
             raise FieldCanNotBeCalculatedBy(field, type)
+
+    def eval_postgres(field, operator, value):
+        if field == 'ipv4-addr:x_ip':
+            return 'field0 >> '  
+        else:
+            raise FieldCanNotBeCalculatedBy(field, type)

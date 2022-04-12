@@ -1,3 +1,4 @@
+from re import match
 from threading import Thread
 
 from pyArango.query import AQLQuery
@@ -82,7 +83,11 @@ def word_compil(word):
     return word, None
 
 
-def compare_compile(compare_string, operator_list=None):
+def compare_compile(
+    compare_string,
+    operator_list=None,
+    value_list=None,
+    field_list=None):
     """Compile a comparaison expression from stix to AQL
 
     Args:
@@ -115,13 +120,23 @@ def compare_compile(compare_string, operator_list=None):
     except (FieldCanNotBeCalculatedBy, KeyError):
         if operator_list != None:
             operator_list.append(operator)
+        if field_list != None:
+            field_list.append(field)
+        if value_list != None:
+            value_list.append(value)
         field = 'f.' + '.'.join(field.split(':')[1:])
         if operator == '=':
             operator = '=='
         return field + ' ' + operator + ' ' + value
 
 
-def pattern_compil(expression, return_type=False, operator_list=None):
+def pattern_compil(
+    expression,
+    return_type=False,
+    operator_list=None,
+    value_list=None,
+    field_list=None
+    ):
     """Compile a stix pattern to AQL comparaison expression
 
     Args:
@@ -173,7 +188,7 @@ def pattern_compil(expression, return_type=False, operator_list=None):
                 type = calculated_type
     result += current_word
     l_compare.append(current_compare)
-    l_compare_compiled = [compare_compile(c, operator_list=operator_list) for c in l_compare]
+    l_compare_compiled = [compare_compile(c, operator_list=operator_list, value_list=value_list, field_list=field_list) for c in l_compare]
     for compare, compiled_compare in zip(l_compare, l_compare_compiled):
         # ! quick fix : remove space before and after
         while len(compare) > 0 and compare[0] in SEPARATOR_CHARS:
@@ -265,17 +280,28 @@ class Request:
         Returns:
             list: objects matching pattern and their related(depth limited)
         """
+        # * we build aql query
         col_name = feed.storage_paradigm.get_collection_name(feed)
         aql_prefix = 'FOR f IN {}  '.format(col_name)
         if limit != -1:
             aql_suffix = ' LIMIT %d RETURN f' % (limit)
         else:
             aql_suffix = ' RETURN f'
-        operator_list = list()
-        aql_middle = 'FILTER ' + pattern_compil(pattern, operator_list=operator_list)
-
+        operator_list = []
+        value_list = []
+        field_list = []
+        aql_middle = 'FILTER ' + pattern_compil(pattern, operator_list=operator_list, value_list=value_list, field_list=field_list)
         aql = aql_prefix + aql_middle + aql_suffix
-        matched_results = self.db_conn.AQLQuery(aql, raw_results=True)
+
+        # * we check if an optimizer can do the job
+        matched_results = None
+        for optimizer in feed.optimizers:
+            if len(field_list) == 1 and field_list[0] == optimizer.field:
+                id_results = optimizer.query(operator_list[0], value_list[0], feed)
+                aql2 = 'for el in %s filter el._key in %s return el' % (col_name, str(id_results))
+                matched_results = self.db_conn.AQLQuery(aql2, raw_results=True)
+        if not(matched_results):
+            matched_results = self.db_conn.AQLQuery(aql, raw_results=True)
         if create_index :
             if operator_list.count('=') == len(operator_list):
                 self._create_index_from_query(col_name, aql)
@@ -283,17 +309,26 @@ class Request:
         results = []
         for r in matched_results:
             r = r.getStore()
-            vertexes = self._graph_traversal(r['_id'], max_depth=max_depth)
+            results.append(r)
             r['x_feed'] = feed.feed_name
             r['x_tags'] = feed.tags
-            results.append(r)
-            for vertex in vertexes:
-                vertex = vertex.getStore()
-                vertex = self.__remove_arango_fields(vertex)
-                vertex['x_feed'] = feed.feed_name
-                vertex['x_tags'] = feed.tags
-                results.append(self.__remove_arango_fields(vertex))
-                
+            if max_depth > 0:
+                vertexes = self._graph_traversal(r['_id'], max_depth=max_depth)
+                for vertex in vertexes:
+                    vertex = vertex.getStore()
+                    results.append(vertex)
+        i = 0
+        while i < len(results):
+            j = i + 1
+            while j < len(results):
+                if results[i]['_id'] == results[j]['_id']:
+                    del results[j]
+                else:
+                    j+=1
+            results[i] = self.__remove_arango_fields(results[i])
+            results[i]['x_feed'] = feed.feed_name
+            results[i]['x_tags'] = feed.tags
+            i += 1
         return results
 
     def request_one_feed_threaded(
@@ -345,7 +380,6 @@ class Request:
         """
         feeds = Feed.get_last_feeds(self.db_conn, self.date)
         request_obj_type = pattern_compil(pattern, return_type=True)
-        str_ = ''
         feeds = [feed for feed in feeds if set(tags).issubset(set(feed.tags)) and \
                 (int(feed.version.split('.')[0]) == 0 or request_obj_type in feed.inserted_stix_types)]
         results = []
