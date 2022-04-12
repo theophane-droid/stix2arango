@@ -6,6 +6,8 @@ from stix2arango.exceptions import (
     UnknownStorageParadigm,
     ArangoDumpNotInstalled,
     ArangoDumpFailed)
+from stix2arango.postgresql import PostgresOptimizer
+
 
 
 class StorageParadigm:
@@ -108,7 +110,7 @@ def snapshot(
     if not date:
         date = datetime.now()
     col_list = []
-    command = """arangodump --output-directory {} \
+    aql_command = """arangodump --output-directory {} \
             --overwrite true --server.endpoint tcp://{}:{} \
             --server.username {} \
             --server.password {} \
@@ -131,11 +133,26 @@ def snapshot(
     col_list.append('meta_history')
     
     for col in col_list:
-        command += " --collection {}".format(col)
-    r = os.system(command)
+        aql_command += " --collection {}".format(col)
+    r = os.system(aql_command)
     if r != 0:
         raise ArangoDumpFailed('arangodump exit with a non-zero status')
-
+    if PostgresOptimizer.db_host:
+        pg_command = """pg_dump --dbname=postgresql://%s:%s@%s:%s/%s --format=t --no-comments --file %s/pg_dump.tgz """
+        pg_command = pg_command % (
+            PostgresOptimizer.db_user,
+            PostgresOptimizer.db_pass,
+            PostgresOptimizer.db_host,
+            PostgresOptimizer.db_port,
+            PostgresOptimizer.db_name,
+            output_dir
+        )
+        table_list = [feed.storage_paradigm.get_collection_name(feed)
+                for feed in feed_list if len(feed.optimizers) > 0]
+        for t in table_list:
+            pg_command += ' -t ' + t + '*'
+        pg_command = pg_command.replace('\n','')
+        r = os.system(pg_command)
 
 def snapshot_restore(
         db_host,
@@ -177,3 +194,14 @@ def snapshot_restore(
     r = os.system(command)
     if r != 0:
         raise ArangoDumpFailed('arangorestore exit with a non-zero status')
+    if PostgresOptimizer.db_host:
+        pg_command = """pg_restore --dbname=postgresql://%s:%s@%s:%s/%s %s/pg_dump.tgz"""
+        pg_command = pg_command % (
+            PostgresOptimizer.db_user,
+            PostgresOptimizer.db_pass,
+            PostgresOptimizer.db_host,
+            PostgresOptimizer.db_port,
+            PostgresOptimizer.db_name,
+            input_dir
+        )
+    r = os.system(pg_command)

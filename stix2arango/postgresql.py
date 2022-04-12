@@ -1,4 +1,6 @@
 import ipaddress
+from nis import match
+from typing import Dict
 
 from stix2arango.exceptions import InvalidObjectForOptimizer
 
@@ -39,6 +41,11 @@ def convert_type(type_, value_):
 class PostgresOptimizer:
     postgres_conn = None
     count = 0
+    db_name = None
+    db_host = None
+    db_user = None
+    db_pass = None
+    db_port = None
     def __init__(self, field):
         self.uuid = str(uuid.uuid4()).replace('-','_')
         self.table_name = None
@@ -65,10 +72,14 @@ class PostgresOptimizer:
 
     def craft_obj_from_request(self, stix_id, field0):
         type = self.field.split(':')[0]
+        if self.field == 'ipv4-addr:x_ip':
+            obj = {'id' : stix_id, 'type' : type, 'value' : field0}
+            return obj
         path = self.field.split(':')[1:-1]
         value_name = self.field.split(':')[-1]
         obj = {'id' : stix_id, 'type' : type}
         current_obj = obj
+
         for step in path:
             current_obj[step] = {}
             current_obj = current_obj[step]
@@ -80,18 +91,33 @@ class PostgresOptimizer:
         self.table_name = feed.storage_paradigm.get_collection_name(feed) + self.uuid
         if self.field == 'ipv4-addr:x_ip':
             middle_sql = 'field0 >> ' + value
-            middle_sql += 'OR field0 = ' + value
+            middle_sql += ' OR field0 = ' + value
         else:
             middle_sql = 'field0 ' + operator_map[operator] + ' ' + value
         sql = 'select arango_id, stix_id, field0 from ' + self.table_name + ' where ' + middle_sql + ';'
         with PostgresOptimizer.postgres_conn.cursor() as cursor:
             cursor.execute(sql)
             results = cursor.fetchall()
-        results = {
-            str(arango_id):self.craft_obj_from_request(stix_id, field0)\
-                for arango_id, stix_id, field0 in results
-            } 
-        return results
+        dict_results = {}
+        for arango_id, stix_id, field0 in results:
+            if not str(arango_id) in dict_results:
+                dict_results[str(arango_id)] = []
+            dict_results[str(arango_id)] += [self.craft_obj_from_request(stix_id, field0)]
+        return dict_results
+
+
+    def crosses_results_with_arango(self, results, arango_conn, col_name):
+        aql2 = 'for el in %s filter el._key in %s return el' % (col_name, str(list(results.keys())))
+        aql_results = arango_conn.AQLQuery(aql2, raw_results=True)
+        matched_results = []
+        for m in aql_results:
+            obj = m.getStore()
+            for pg_obj in results[m['_key']]:
+                for key in pg_obj:
+                    obj[key] = pg_obj[key]
+                matched_results.append(dict(obj))
+        return matched_results
+
 
     def __del__(self):
         if self.table_created and PostgresOptimizer.postgres_conn:
@@ -202,3 +228,15 @@ class PostgresOptimizer:
         if 'id' in object:
             del object['id']
         return object
+
+    @staticmethod
+    def connect_db():
+        auth = "dbname='%s' user='%s' host='%s' password='%s' port='%s'"
+        auth = auth % (
+            PostgresOptimizer.db_name,
+            PostgresOptimizer.db_user,
+            PostgresOptimizer.db_host,
+            PostgresOptimizer.db_pass,
+            PostgresOptimizer.db_port
+        )
+        PostgresOptimizer.postgres_conn = psycopg2.connect(auth)

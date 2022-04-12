@@ -302,24 +302,19 @@ class Request:
                     opti_results = optimizer.query(operator_list[0], value_list[0], feed)
                 except Exception as e:
                     opti_results = {}
-                aql2 = 'for el in %s filter el._key in %s return el' % (col_name, str(list(opti_results.keys())))
-                aql_results = self.db_conn.AQLQuery(aql2, raw_results=True)
-                matched_results = []
-                for m in aql_results:
-                    # m = m.getStore()
-                    pg_obj = opti_results[m['_key']]
-                    for key in pg_obj:
-                        m[key] = pg_obj[key]
-                    matched_results.append(m)
+                matched_results = optimizer.crosses_results_with_arango(
+                    opti_results, 
+                    self.db_conn, 
+                    col_name)
         if not(matched_results):
-            matched_results = self.db_conn.AQLQuery(aql, raw_results=True)
+            matched_results = [e.getStore() for e in\
+                    self.db_conn.AQLQuery(aql, raw_results=True)]
         if create_index :
             if operator_list.count('=') == len(operator_list):
                 self._create_index_from_query(col_name, aql)
         # create
         results = []
         for r in matched_results:
-            r = r.getStore()
             results.append(r)
             r['x_feed'] = feed.feed_name
             r['x_tags'] = feed.tags
@@ -330,12 +325,6 @@ class Request:
                     results.append(vertex)
         i = 0
         while i < len(results):
-            j = i + 1
-            while j < len(results):
-                if results[i]['_id'] == results[j]['_id']:
-                    del results[j]
-                else:
-                    j+=1
             results[i] = self.__remove_arango_fields(results[i])
             results[i]['x_feed'] = feed.feed_name
             results[i]['x_tags'] = feed.tags

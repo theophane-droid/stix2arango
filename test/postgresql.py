@@ -48,13 +48,45 @@ def get_database():
         database = db_conn['stix2arango']
     return database
 
+auth = "dbname='%s' user='%s' host='%s' password='%s'" % (db, user, host, pass_)
+arango_conn = get_database()
+postgres_conn = psycopg2.connect(auth)
+PostgresOptimizer.postgres_conn = postgres_conn
+
+print('> Test obj merge in arango')
+feed = Feed(
+    arango_conn, 
+    'posgres_merge_test', 
+    tags=['postgres'], 
+    date=datetime.now(),
+    storage_paradigm=TIME_BASED
+    )
+optimizer = PostgresOptimizer('ipv4-addr:x_ip')
+feed.optimizers.append(optimizer)
+ip_list = []
+ip_list += [IPv4Address(value='97.8.1.6')]
+ip_list += [IPv4Address(value='97.8.1.7')]
+ip_list += [IPv4Address(value='97.8.1.8')]
+ip_list += [IPv4Address(value='97.8.1.9')]
+ip_list += [IPv4Address(value='97.8.1.10')]
+ip_list += [IPv4Address(value='97.8.1.11')]
+feed.insert_stix_object_in_arango(ip_list)
+
+aql = 'for el in ' + feed.storage_paradigm.get_collection_name(feed) + ' return el'
+results = arango_conn.AQLQuery(aql, raw_results=True)
+assert(len(results) == 1)
+sql = 'select * from ' + optimizer.table_name + ';'
+cursor = PostgresOptimizer.postgres_conn.cursor()
+cursor.execute(sql)
+results = cursor.fetchall()
+cursor.close()
+assert(len(results) == 6)
+
+print('OK')
 
 print('> Test postgres optimizer')
 
-auth = "dbname='%s' user='%s' host='%s' password='%s'" % (db, user, host, pass_)
 
-postgres_conn = psycopg2.connect(auth)
-arango_conn = get_database()
 feed = Feed(
     arango_conn, 
     'posgres_test', 
@@ -62,7 +94,6 @@ feed = Feed(
     date=datetime.now(),
     storage_paradigm=TIME_BASED
     )
-PostgresOptimizer.postgres_conn = postgres_conn
 optimized_field0 = 'ipv4-addr:value'
 optimizer0 = PostgresOptimizer(optimized_field0)
 optimized_field1 = 'ipv4-addr:x_ip:broadcast_addr'
@@ -161,37 +192,5 @@ print(pattern)
 request = Request(arango_conn, datetime.now())
 results = request.request(pattern,
                        max_depth=0, tags=['postgres'])
-print('results', results)
-assert(len(results) == 2)
-
-
-print('> Test obj merge in arango')
-feed = Feed(
-    arango_conn, 
-    'posgres_merge_test', 
-    tags=['postgres'], 
-    date=datetime.now(),
-    storage_paradigm=TIME_BASED
-    )
-optimizer = PostgresOptimizer('ipv4-addr:x_ip')
-feed.optimizers.append(optimizer)
-ip_list = []
-ip_list += [IPv4Address(value='97.8.1.6')]
-ip_list += [IPv4Address(value='97.8.1.7')]
-ip_list += [IPv4Address(value='97.8.1.8')]
-ip_list += [IPv4Address(value='97.8.1.9')]
-ip_list += [IPv4Address(value='97.8.1.10')]
-ip_list += [IPv4Address(value='97.8.1.11')]
-feed.insert_stix_object_in_arango(ip_list)
-
-aql = 'for el in ' + feed.storage_paradigm.get_collection_name(feed) + ' return el'
-results = arango_conn.AQLQuery(aql, raw_results=True)
-assert(len(results) == 1)
-sql = 'select * from ' + optimizer.table_name + ';'
-cursor = PostgresOptimizer.postgres_conn.cursor()
-cursor.execute(sql)
-results = cursor.fetchall()
-cursor.close()
-assert(len(results) == 6)
-
-print('OK')
+print('results104', results)
+assert(len(results) == 3)

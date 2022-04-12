@@ -1,6 +1,7 @@
 import os
 import sys
 
+
 if 'TEST' in os.environ != '':
     sys.path.insert(0, '/app')
 
@@ -17,6 +18,7 @@ from stix2arango.request import Request
 from stix2arango.feed import vaccum, Feed
 from stix2arango.storage import snapshot, snapshot_restore
 from stix2arango.utils import ArangoUser
+from stix2arango.postgresql import PostgresOptimizer
 
 app = Flask(__name__)
 db_conn = None
@@ -167,6 +169,31 @@ if __name__ == '__main__':
         default=622,
         help='Port for the web server'
     )
+    parser.add_argument(
+        '--pg_user',
+        default=None,
+        help='User for postgresql database'
+    )
+    parser.add_argument(
+        '--pg_pass',
+        default=None,
+        help='Password for postgresql database'
+    )
+    parser.add_argument(
+        '--pg_host',
+        default=None,
+        help='Host for postgresql database'
+    )
+    parser.add_argument(
+        '--pg_port',
+        default=None,
+        help='Port for postgresql database'
+    )
+    parser.add_argument(
+        '--pg_dbname',
+        default=None,
+        help='Database name for postgresql'
+    )
 
     args = parser.parse_args()
     if not args.host:
@@ -178,6 +205,21 @@ if __name__ == '__main__':
     if not args.password:
         print('Please provide a password for the database')
         exit(1)
+    pg_args = [args.pg_user, args.pg_host, args.pg_pass, args.pg_port, args.pg_dbname]
+    if 5 > pg_args.count(None):
+        if  pg_args.count(None) > 0:
+            print('Please provide all the postgres informations for connexion : ' +
+                '--pg_user, --pg_host, --pg_pass, --pg_port, --pg_dbname')
+            exit(1)
+        else:
+            print('coucou')
+            PostgresOptimizer.db_host = args.pg_host
+            PostgresOptimizer.db_user = args.pg_user
+            PostgresOptimizer.db_pass = args.pg_pass
+            PostgresOptimizer.db_port = args.pg_port
+            PostgresOptimizer.db_name = args.pg_dbname
+            PostgresOptimizer.connect_db()
+
     arangoURL = 'http://{}:{}'.format(args.host, args.port)
     conn = Connection(
         username=args.user,

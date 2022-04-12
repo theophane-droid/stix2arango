@@ -40,6 +40,6 @@ class IPV4Modifier(IPv4Address):
 
     def eval_postgres(field, operator, value):
         if field == 'ipv4-addr:x_ip':
-            return 'field0 >> '  
+            return 'field0 << '  
         else:
             raise FieldCanNotBeCalculatedBy(field, type)
