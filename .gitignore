@@ -155,5 +155,9 @@ notes.md
 doc_build/
 cert/
 
-# notes files
+# perso files
 notes.txt
+coverage.xml
+.coverage
+.vscode/
+*.tgz
