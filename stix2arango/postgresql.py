@@ -38,6 +38,32 @@ def convert_type(type_, value_):
     
     raise RuntimeError("%s type not found" % (type_))
 
+
+class PGResult(dict):
+    def __init__(
+        self,
+        arango_conn,
+        arango_id=None,
+        field0_value=None,
+        optimizer=None
+        ):
+        self.arango_conn = arango_conn
+        self.arango_id = arango_id
+        self.field0_value = field0_value
+        self.optimizer = optimizer
+        super().__init__()
+    
+    def __call__(self):
+        if self.field0_value:
+            pass
+
+def arango_id_to_stix():
+    pass
+
+def field0_to_stix():
+    pass
+
+
 class PostgresOptimizer:
     postgres_conn = None
     count = 0
@@ -60,8 +86,10 @@ class PostgresOptimizer:
         arango_id = int(arango_id.split('/')[-1])
         if self.field != 'ipv4-addr:x_ip':
             value = self.__extract_field_value(self.field, stix_object)
-        else:
+        elif stix_object['type'] == 'ipv4-addr':
             value = stix_object['value']
+        else:
+            raise InvalidObjectForOptimizer(stix_object['type'])
         sql = "INSERT INTO " + self.table_name + " values (%s, %s, %s);"
         with PostgresOptimizer.postgres_conn.cursor() as cursor:
             cursor.execute(sql, [value, arango_id, stix_object['id']])
@@ -86,6 +114,14 @@ class PostgresOptimizer:
         current_obj[value_name] = field0
         return obj
 
+    def present_results(self, results):
+        dict_results = {}
+        for arango_id, stix_id, field0 in results:
+            if not str(arango_id) in dict_results:
+                dict_results[str(arango_id)] = []
+            dict_results[str(arango_id)] += [self.craft_obj_from_request(stix_id, field0)]
+        return dict_results
+
 
     def query(self, operator, value, feed):
         self.table_name = feed.storage_paradigm.get_collection_name(feed) + self.uuid
@@ -98,15 +134,28 @@ class PostgresOptimizer:
         with PostgresOptimizer.postgres_conn.cursor() as cursor:
             cursor.execute(sql)
             results = cursor.fetchall()
-        dict_results = {}
-        for arango_id, stix_id, field0 in results:
-            if not str(arango_id) in dict_results:
-                dict_results[str(arango_id)] = []
-            dict_results[str(arango_id)] += [self.craft_obj_from_request(stix_id, field0)]
-        return dict_results
+        return self.present_results(results)
+
+    def query_from_arango_results(self, col_name, results, arango_conn):
+        self.table_name = col_name + self.uuid
+        pg_results = []
+        for r in results:
+            try:
+                r = r.getStore()
+            except:
+                pass
+            if r['type'] == self.field.split(':')[0] or\
+                (self.field == 'ipv4-addr:x_ip' and r['type'] == 'ipv4-addr'):
+                sql = 'select arango_id, stix_id, field0 from ' + self.table_name + ' where arango_id = \'' + r['_key'] + '\''
+                cursor = PostgresOptimizer.postgres_conn.cursor()
+                cursor.execute(sql)
+                pg_results += cursor.fetchall()
+        pg_results = self.present_results(pg_results)
+        cross =  self.crosses_results_with_arango(pg_results, arango_conn, col_name)
+        return cross
 
 
-    def crosses_results_with_arango(self, results, arango_conn, col_name):
+    def crosses_results_with_arango(self, results, arango_conn, col_name) -> list:
         aql2 = 'for el in %s filter el._key in %s return el' % (col_name, str(list(results.keys())))
         aql_results = arango_conn.AQLQuery(aql2, raw_results=True)
         matched_results = []

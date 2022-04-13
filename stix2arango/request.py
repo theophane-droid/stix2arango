@@ -319,9 +319,10 @@ class Request:
             r['x_feed'] = feed.feed_name
             r['x_tags'] = feed.tags
             if max_depth > 0:
-                vertexes = self._graph_traversal(r['_id'], max_depth=max_depth)
+                vertexes = self._graph_traversal(r['_id'], feed, max_depth=max_depth)
                 for vertex in vertexes:
-                    vertex = vertex.getStore()
+                    if type(vertex) != dict:
+                        vertex = vertex.getStore()
                     results.append(vertex)
         i = 0
         while i < len(results):
@@ -417,7 +418,7 @@ class Request:
             )
         return index_name
 
-    def _graph_traversal(self, id, max_depth=1):
+    def _graph_traversal(self, id, feed, max_depth=1):
         """Traverse the graph to get the related objects
 
         Args:
@@ -433,7 +434,14 @@ class Request:
                 PRUNE COUNT(p.vertices) == 2 and p.vertices[1].type!="relationship"
                 RETURN v"""\
             .format(id, 'edge_' + col_name, id)
-        return self.db_conn.AQLQuery(aql, raw_results=True)
+        matched_results = self.db_conn.AQLQuery(aql, raw_results=True)
+        results = []
+        if len(feed.optimizers) > 0:
+            for optimizer in feed.optimizers:
+                results += optimizer.query_from_arango_results(col_name, matched_results, self.db_conn)
+        else:
+            results = matched_results
+        return results
 
     def _extract_field_path(self, node):
         result = []

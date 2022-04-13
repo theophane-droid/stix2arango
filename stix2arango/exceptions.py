@@ -55,24 +55,26 @@ class FieldCanNotBeCalculatedBy(Exception):
             .format(self.field, self.pattern)
 
 
-class ArangoDumpNotInstalled(Exception):
+class PackageMissing(Exception):
     """
-    Exception raised when the arangodump is not installed
-    and trying to dump database
+    Exception raised when the a package is missing
     """
+    def __init__(self, package_name):
+        self.package_name = package_name
+
     def __str__(self):
-        return """ArangoDump is not installed"""
+        return """%s is missing""" % (self.package_name)
 
 
-class ArangoDumpFailed(Exception):
+class DumpFailed(Exception):
     """
-    Exception raised when the arangodump failed
+    Exception raised when the dump failed
     """
     def __init__(self, reason):
         self.reason = reason
 
     def __str__(self):
-        return """ArangoDump failed because {}""".format(self.reason)
+        return """Dump failed because {}""".format(self.reason)
 
 class MergeFailedException(Exception):
     """

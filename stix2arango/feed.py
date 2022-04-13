@@ -1,3 +1,4 @@
+import copy
 from operator import is_
 from pickle import GLOBAL
 from pickletools import optimize
@@ -158,7 +159,7 @@ class Feed:
             pyarango doc: the stored document
         """
         object = dict(object)
-        object_save = dict(object)
+        object_save = copy.deepcopy(object)
         if object['type'] not in self.inserted_stix_types:
             self.inserted_stix_types.append(object['type'])
             self.__update_inserted_object_list()
@@ -176,6 +177,7 @@ class Feed:
             pass
         col = self.db_conn[colname]
         # check if there if there is relation in the object
+        compact = str({k:v for k,v in object.items()})
         for key in object_save:
             suffix = key.split('_')[-1]
             if suffix == 'ref':
@@ -184,7 +186,8 @@ class Feed:
                 for ref in object_save[key]:
                     self.edge_to_insert.append((object_save['id'], ref, key))
         # save doc
-        compact = str(object)
+        if len(self.optimized_obj.keys()) > 1000:
+            self.optimized_obj = {}
         try:
             doc = self.optimized_obj[compact]
             self.obj_inserted[object_save['id']] = doc

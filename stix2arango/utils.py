@@ -1,8 +1,10 @@
 from random import randint, Random
 import uuid
 import re
+import os
 
 from pyArango.connection import Connection
+from pyArango.theExceptions import CreationError
 from stix2 import parse
 
 from stix2arango.exceptions import MergeFailedException
@@ -173,8 +175,9 @@ def merge_obj_list(l_obj):
                     l_obj[i] = merge_obj(l_obj[i], l_obj[j])
                     del l_obj[j]
                 except MergeFailedException:
-                    pass
-            j += 1
+                    j += 1
+            else:
+                j += 1
         i += 1
     return
 
@@ -212,3 +215,17 @@ class ArangoUser:
 
 def is_valid_feed_name(name):
     return re.match('^[a-zA-Z0-9_]*$', name) and len(name) <= 30
+
+def get_database():
+    try:
+        password = os.environ['ARANGO_ROOT_PASSWORD']
+        url = os.environ['ARANGO_URL']
+    except KeyError:
+        password = 'changeme'
+        url = 'http://localhost:8529'
+    db_conn = Connection(username='root', password=password, arangoURL=url)
+    try:
+        database = db_conn.createDatabase('stix2arango')
+    except CreationError:
+        database = db_conn['stix2arango']
+    return database
