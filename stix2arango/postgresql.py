@@ -1,8 +1,10 @@
 import ipaddress
+import copy
 from nis import match
 from typing import Dict
 
 from stix2arango.exceptions import InvalidObjectForOptimizer
+from stix2arango.utils import deep_dict_update
 
 import psycopg2
 from psycopg2.errors import DuplicateTable
@@ -56,12 +58,6 @@ class PGResult(dict):
     def __call__(self):
         if self.field0_value:
             pass
-
-def arango_id_to_stix():
-    pass
-
-def field0_to_stix():
-    pass
 
 
 class PostgresOptimizer:
@@ -137,6 +133,7 @@ class PostgresOptimizer:
         return self.present_results(results)
 
     def query_from_arango_results(self, col_name, results, arango_conn):
+        # ! BUG : 2 times the same results
         self.table_name = col_name + self.uuid
         pg_results = []
         for r in results:
@@ -151,20 +148,25 @@ class PostgresOptimizer:
                 cursor.execute(sql)
                 pg_results += cursor.fetchall()
         pg_results = self.present_results(pg_results)
-        cross =  self.crosses_results_with_arango(pg_results, arango_conn, col_name)
+        cross = []
+        for r in results:
+            if r['_key'] in pg_results:
+                for x in pg_results[r['_key']]:
+                    r = copy.deepcopy(r)
+                    cross.append(deep_dict_update(r, x))
         return cross
 
 
     def crosses_results_with_arango(self, results, arango_conn, col_name) -> list:
         aql2 = 'for el in %s filter el._key in %s return el' % (col_name, str(list(results.keys())))
-        aql_results = arango_conn.AQLQuery(aql2, raw_results=True)
+        aql_results = [result.getStore() for result in 
+                       arango_conn.AQLQuery(aql2, raw_results=True)]
         matched_results = []
         for m in aql_results:
-            obj = m.getStore()
+            obj = copy.deepcopy(m)
             for pg_obj in results[m['_key']]:
-                for key in pg_obj:
-                    obj[key] = pg_obj[key]
-                matched_results.append(dict(obj))
+                deep_dict_update(obj, pg_obj)
+                matched_results.append(obj)
         return matched_results
 
 
@@ -176,8 +178,9 @@ class PostgresOptimizer:
                 with PostgresOptimizer.postgres_conn.cursor() as cursor:
                     cursor.execute(sql)
             except:
-                pass 
-        PostgresOptimizer.postgres_conn.commit()
+                pass
+        if PostgresOptimizer.postgres_conn:
+            PostgresOptimizer.postgres_conn.commit()
 
     def __dict__(self):
         return {
@@ -187,7 +190,7 @@ class PostgresOptimizer:
         }
 
     def __extract_field_type(self, field, stix_object):
-        object = dict(stix_object)
+        object = copy.deepcopy(stix_object)
         if field.split(':')[0] == object['type']:
             for f in field.split(':')[1:]:
                 try:
@@ -200,7 +203,7 @@ class PostgresOptimizer:
 
 
     def __extract_field_value(self, field, stix_object):
-        object = dict(stix_object)
+        object = copy.deepcopy(stix_object)
         if field.split(':')[0] == object['type']:
             for f in field.split(':')[1:]:
                 try:
@@ -247,18 +250,22 @@ class PostgresOptimizer:
             results = cursor.fetchall()
         return [list(r)[1] for r in results]
 
-    def drop_table(self, feed_name):
-        for table_name in self.list_all_table():
-            if table_name.startswith(feed_name):
-                sql = 'drop table ' + table_name
-                with PostgresOptimizer.postgres_conn.cursor() as cursor :
-                    cursor.execute(sql)
-        PostgresOptimizer.postgres_conn.commit()
-        self.table_created = False
+    def drop_table(self, feed_name) -> bool:
+        try:
+            for table_name in self.list_all_table():
+                if table_name.startswith(feed_name):
+                    sql = 'drop table ' + table_name
+                    with PostgresOptimizer.postgres_conn.cursor() as cursor :
+                        cursor.execute(sql)
+            PostgresOptimizer.postgres_conn.commit()
+            self.table_created = False
+            return True
+        except Exception:
+            return False
     
 
     def delete_fields_in_object(self, object):
-        object = dict(object)
+        object = copy.deepcopy(object)
         object_type = self.field.split(':')[0]
         field_path = self.field.split(':')[1:-1]
         last_field = self.field.split(':')[-1]

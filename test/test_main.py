@@ -28,7 +28,7 @@ class GeneralTest(unittest.TestCase):
 
         self.ipv6 = IPv6Address(value='2001:0db8:85a3:0000:0000:8a2e:0370:7334', belongs_to_refs=[self.autonomous_system.id])
 
-        self.feed = Feed(db_conn, 'timefeed', tags=['paynoattention', 'time_based'], storage_paradigm=TIME_BASED)
+        self.feed = Feed(db_conn, 'timefeed', tags=['time_based'], storage_paradigm=TIME_BASED)
     
     def test_insert(self):
         self.feed.insert_stix_object_in_arango([self.ipv4,
@@ -80,7 +80,7 @@ class GeneralTest(unittest.TestCase):
         self.assertEqual(len(results), 1)
 
         results = request.request("[ malware:name  = 'Adware'  ]",
-                            tags=['pattern'])
+                            tags=['patterntestfeed'])
         self.assertEqual(len(results), 0)
 
 

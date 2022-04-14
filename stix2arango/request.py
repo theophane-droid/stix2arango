@@ -246,7 +246,7 @@ class Request:
         self.db_conn = db_conn
         self.date = date
 
-    def __remove_arango_fields(self, object):
+    def __remove_arango_fields(self, object: dict) -> dict:
         """Remove the fields created by arangoDB from the object
 
         Args:
@@ -255,6 +255,7 @@ class Request:
         Returns:
             dict: the cleaned object
         """
+        
         return {k: v for k, v in object.items() if not k.startswith('_')}
 
     def request_one_feed(
@@ -316,13 +317,9 @@ class Request:
         results = []
         for r in matched_results:
             results.append(r)
-            r['x_feed'] = feed.feed_name
-            r['x_tags'] = feed.tags
             if max_depth > 0:
                 vertexes = self._graph_traversal(r['_id'], feed, max_depth=max_depth)
                 for vertex in vertexes:
-                    if type(vertex) != dict:
-                        vertex = vertex.getStore()
                     results.append(vertex)
         i = 0
         while i < len(results):
@@ -418,7 +415,7 @@ class Request:
             )
         return index_name
 
-    def _graph_traversal(self, id, feed, max_depth=1):
+    def _graph_traversal(self, id, feed, max_depth=1) -> dict:
         """Traverse the graph to get the related objects
 
         Args:
@@ -434,7 +431,8 @@ class Request:
                 PRUNE COUNT(p.vertices) == 2 and p.vertices[1].type!="relationship"
                 RETURN v"""\
             .format(id, 'edge_' + col_name, id)
-        matched_results = self.db_conn.AQLQuery(aql, raw_results=True)
+        matched_results = [result.getStore() for result in
+            self.db_conn.AQLQuery(aql, raw_results=True)]
         results = []
         if len(feed.optimizers) > 0:
             for optimizer in feed.optimizers:

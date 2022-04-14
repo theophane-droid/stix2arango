@@ -1,3 +1,4 @@
+from ipaddress import IPV4LENGTH
 import psycopg2
 import unittest
 import os
@@ -81,18 +82,18 @@ class TestMerge(unittest.TestCase):
         aql = 'for el in ' + self.feed.storage_paradigm.get_collection_name(self.feed) + ' return el'
         results = arango_conn.AQLQuery(aql, raw_results=True)
 
-        self.assertEqual(len(results), 4)
+        assert(len(results) == 4)
         sql = 'select * from ' + self.optimizer.table_name + ';'
         cursor = PostgresOptimizer.postgres_conn.cursor()
         cursor.execute(sql)
         results = cursor.fetchall()
         cursor.close()
-        self.assertEqual(len(results), 6)
+        assert(len(results) == 6)
 
         request = Request(arango_conn, datetime.now())
         results = request.request("  [autonomous-system:number  = 124 ]  ",
                             max_depth=1, tags=['postgres'])
-        self.assertEqual(len(results), 3)
+        assert(len(results) == 3)
 
 
 class TestOptimizer(unittest.TestCase):
@@ -124,8 +125,6 @@ class TestOptimizer(unittest.TestCase):
         request = Request(arango_conn, datetime.now())
         results = request.request("  [ipv4-addr:value  =   '97.8.8.8' ]  ",
                        max_depth=0, tags=['test_postgres_optimizer'])
-        print(list(self.ipv4_1.keys()))
-        print(list(results[0].keys()))
         dict_1 = dict(self.ipv4_1)
         dict_2 = dict(results[0])
         del dict_2['x_tags']
@@ -209,13 +208,23 @@ class StaticStorageTest(unittest.TestCase):
 
 class MatchIpOnCidrTest(unittest.TestCase):
     def setUp(self):
+        self.feed = Feed(
+            arango_conn, 
+            'postgres_test_cidr', 
+            tags=['postgres_test_cidr'], 
+            date=datetime.now(),
+            storage_paradigm=TIME_BASED
+        )
+        ipv4_1 = IPv4Address(value='97.8.1.0/24')
+        ipv4_2 = IPv4Address(value='97.8.1.7')
+        self.feed.insert_stix_object_in_arango([ipv4_1, ipv4_2])
         self.pattern = "[ipv4-addr:x_ip = '97.8.1.7']"
         self.request = Request(arango_conn, datetime.now())
     
     def test_match_ip_on_cidr(self):
         results = self.request.request(self.pattern,
-                        max_depth=0, tags=['postgres'])
-        self.assertEqual(len(results), 3)
+                        max_depth=0, tags=['postgres_test_cidr'])
+        self.assertEqual(len(results), 2)
 
 
 class TwoOptimizesTest(unittest.TestCase):
@@ -254,17 +263,14 @@ class TwoOptimizesTest(unittest.TestCase):
         request = Request(arango_conn, datetime.now())
         results = request.request("  [autonomous-system:number  = 124 ]  ",
                         max_depth=1, tags=['postgres_test2'])
+        # raise Exception(str(results))
         self.assertEqual(len(results), 3)
         results = request.request("  [ipv4-addr:x_ip = '97.8.1.6' ]  ",
-                        max_depth=10, tags=['postgres_test2'])
+                        max_depth=1, tags=['postgres_test2'])
         self.assertEqual(len(results), 2)
 
 
-class TestTreesObject:
-    def __init__(self):
-        self.setUp()
-        self.test_trees_obj()
-
+class TestTreesObject(unittest.TestCase):
     def setUp(self):
         self.feed = Feed(
             arango_conn, 
@@ -303,14 +309,17 @@ class TestTreesObject:
         request = Request(arango_conn, datetime.now())
         results = request.request(" [file:hashes:MD5 = 'e0323a9039add2978bf5b49550572c7c']  ",
                         max_depth=1, tags=['posgres_trees_obj'])
-        assert(len(results) == 1)
-        dict_file = dict(file1)
-        assert(results[0] == dict_file)
+        self.assertEqual(len(results), 1)
+        dict_file = {k:v for k,v in dict(file1).items() if k not in ['x_feed', 'x_tags'] } # ! OK
+        dict_result0 = {k:v for k,v in results[0].items() if k not in ['x_feed', 'x_tags'] } # ! OK
+        
+        self.assertEqual(dict_result0, dict_file)
         cursor = PostgresOptimizer.postgres_conn.cursor()
         sql = 'select * from ' + optimizer.table_name + ';'
         cursor.execute(sql)
         results = cursor.fetchall()
         cursor.close()
+        PostgresOptimizer.postgres_conn.commit()
         self.assertEqual(len(results), 2)
 
-TestTreesObject()
+TestMerge()
