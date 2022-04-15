@@ -120,6 +120,8 @@ class PostgresOptimizer:
 
 
     def query(self, operator, value, feed):
+        if value[0] == '"' and value[-1] == '"':
+            value = "'" + value[1:-1] + "'"
         self.table_name = feed.storage_paradigm.get_collection_name(feed) + self.uuid
         if self.field == 'ipv4-addr:x_ip':
             middle_sql = 'field0 >> ' + value

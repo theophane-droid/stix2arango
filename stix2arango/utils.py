@@ -74,7 +74,7 @@ def check_if_expression_is_balanced(pattern):
     if not queue:
         return True
     else:
-        return
+        return False
 
 
 def remove_unused_space(aql):

@@ -283,6 +283,7 @@ class Request:
             list: objects matching pattern and their related(depth limited)
         """
         # * we build aql query
+        
         col_name = feed.storage_paradigm.get_collection_name(feed)
         aql_prefix = 'FOR f IN {}  '.format(col_name)
         if limit != -1:
@@ -294,7 +295,6 @@ class Request:
         field_list = []
         aql_middle = 'FILTER ' + pattern_compil(pattern, operator_list=operator_list, value_list=value_list, field_list=field_list)
         aql = aql_prefix + aql_middle + aql_suffix
-
         # * we check if an optimizer can do the job
         matched_results = None
         for optimizer in feed.optimizers:
@@ -307,9 +307,10 @@ class Request:
                     opti_results, 
                     self.db_conn, 
                     col_name)
-        if not(matched_results):
+        if matched_results == None:
             matched_results = [e.getStore() for e in\
                     self.db_conn.AQLQuery(aql, raw_results=True)]
+
         if create_index :
             if operator_list.count('=') == len(operator_list):
                 self._create_index_from_query(col_name, aql)
