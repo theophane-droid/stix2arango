@@ -55,24 +55,26 @@ class FieldCanNotBeCalculatedBy(Exception):
             .format(self.field, self.pattern)
 
 
-class ArangoDumpNotInstalled(Exception):
+class PackageMissing(Exception):
     """
-    Exception raised when the arangodump is not installed
-    and trying to dump database
+    Exception raised when the a package is missing
     """
+    def __init__(self, package_name):
+        self.package_name = package_name
+
     def __str__(self):
-        return """ArangoDump is not installed"""
+        return """%s is missing""" % (self.package_name)
 
 
-class ArangoDumpFailed(Exception):
+class DumpFailed(Exception):
     """
-    Exception raised when the arangodump failed
+    Exception raised when the dump failed
     """
     def __init__(self, reason):
         self.reason = reason
 
     def __str__(self):
-        return """ArangoDump failed because {}""".format(self.reason)
+        return """Dump failed because {}""".format(self.reason)
 
 class MergeFailedException(Exception):
     """
@@ -83,3 +85,21 @@ class MergeFailedException(Exception):
 
     def __str__(self) -> str:
         return """Failed to merge two objects with id %s""" % (id)
+
+
+class InvalidFeedName(Exception):
+    """Exception raised when feed_name contains a character different from lettes, digit or underscore,
+      or if its length is greater than 30       
+
+    Args:
+        Exception (_type_): _description_
+    """
+    def __str__(self) -> str:
+        return """Feed name can contain just letters, digits and underscore and its length should be less than 30"""
+
+class InvalidObjectForOptimizer(Exception):
+    def __init__(self, type):
+        self.type = type
+
+    def __str__(self) -> str:
+        return """Object of type %s cannot be indexed in this optimizer""" % (self.type)

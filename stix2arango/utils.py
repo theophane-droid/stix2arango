@@ -1,7 +1,10 @@
 from random import randint, Random
 import uuid
+import re
+import os
 
 from pyArango.connection import Connection
+from pyArango.theExceptions import CreationError
 from stix2 import parse
 
 from stix2arango.exceptions import MergeFailedException
@@ -71,7 +74,7 @@ def check_if_expression_is_balanced(pattern):
     if not queue:
         return True
     else:
-        return
+        return False
 
 
 def remove_unused_space(aql):
@@ -151,6 +154,7 @@ def update_uid_for_obj_list(l_obj):
 
 
 def merge_obj(obj1, obj2):
+    obj1 = dict(obj1)
     for key, value in obj2.items():
         if key not in obj1:
             obj1[key] = value
@@ -165,13 +169,15 @@ def merge_obj_list(l_obj):
     while i < len(l_obj):
         j = i + 1
         while j < len(l_obj):
-            if l_obj[i]['id'] == l_obj[j]['id']:
+            if 'id' in l_obj[i] and 'id' in l_obj[j] and\
+                l_obj[i]['id'] == l_obj[j]['id']:
                 try:
                     l_obj[i] = merge_obj(l_obj[i], l_obj[j])
                     del l_obj[j]
                 except MergeFailedException:
-                    pass
-            j += 1
+                    j += 1
+            else:
+                j += 1
         i += 1
     return
 
@@ -205,3 +211,37 @@ class ArangoUser:
 
     def get_id(self):         
         return str(self.id)
+
+
+def is_valid_feed_name(name):
+    return re.match('^[a-zA-Z0-9_]*$', name) and len(name) <= 30
+
+def get_database():
+    try:
+        password = os.environ['ARANGO_ROOT_PASSWORD']
+        url = os.environ['ARANGO_URL']
+    except KeyError:
+        password = 'changeme'
+        url = 'http://localhost:8529'
+    db_conn = Connection(username='root', password=password, arangoURL=url)
+    try:
+        database = db_conn.createDatabase('stix2arango')
+    except CreationError:
+        database = db_conn['stix2arango']
+    return database
+
+import collections
+
+
+def deep_dict_update(source, overrides):
+    """
+    Update a nested dictionary or similar mapping.
+    Modify ``source`` in place.
+    """
+    for key, value in overrides.items():
+        if isinstance(value, collections.Mapping) and value:
+            returned = deep_dict_update(source.get(key, {}), value)
+            source[key] = returned
+        else:
+            source[key] = overrides[key]
+    return source

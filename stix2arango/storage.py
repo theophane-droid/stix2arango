@@ -3,9 +3,10 @@ import shutil
 import os
 
 from stix2arango.exceptions import (
-    UnknownStorageParadigm,
-    ArangoDumpNotInstalled,
-    ArangoDumpFailed)
+    PackageMissing,
+    DumpFailed)
+from stix2arango.postgresql import PostgresOptimizer
+
 
 
 class StorageParadigm:
@@ -100,15 +101,17 @@ def snapshot(
         date (str, optional): Date from which take snapshot. Defaults to now.
 
     Raises:
-        ArangoDumpNotInstalled: [description]
-        ArangoDumpFailed: [description]
+        PackageMissing: [description]
+        DumpFailed: [description]
     """
     if shutil.which('arangodump') is None:
-        raise ArangoDumpNotInstalled()
+        raise PackageMissing('arangodump')
+    if PostgresOptimizer.db_host and shutil.which('pg_dump') is None:
+        raise PackageMissing('pg_dump')
     if not date:
         date = datetime.now()
     col_list = []
-    command = """arangodump --output-directory {} \
+    aql_command = """arangodump --output-directory {} \
             --overwrite true --server.endpoint tcp://{}:{} \
             --server.username {} \
             --server.password {} \
@@ -131,11 +134,26 @@ def snapshot(
     col_list.append('meta_history')
     
     for col in col_list:
-        command += " --collection {}".format(col)
-    r = os.system(command)
+        aql_command += " --collection {}".format(col)
+    r = os.system(aql_command)
     if r != 0:
-        raise ArangoDumpFailed('arangodump exit with a non-zero status')
-
+        raise DumpFailed('arangodump exit with a non-zero status ' + aql_command)
+    if PostgresOptimizer.db_host:
+        pg_command = """pg_dump --dbname=postgresql://%s:%s@%s:%s/%s --format=t --no-comments --file %s/pg_dump.tgz """
+        pg_command = pg_command % (
+            PostgresOptimizer.db_user,
+            PostgresOptimizer.db_pass,
+            PostgresOptimizer.db_host,
+            PostgresOptimizer.db_port,
+            PostgresOptimizer.db_name,
+            output_dir
+        )
+        table_list = [feed.storage_paradigm.get_collection_name(feed)
+                for feed in feed_list if len(feed.optimizers) > 0]
+        for t in table_list:
+            pg_command += ' -t ' + t + '*'
+        pg_command = pg_command.replace('\n','')
+        r = os.system(pg_command)
 
 def snapshot_restore(
         db_host,
@@ -157,11 +175,13 @@ def snapshot_restore(
 
     Raises:
         ArangoDumpNotInstalled: if arangodb-client is not installed
-        ArangoDumpFailed: if arangodump failed
+        DumpFailed: if arangodump failed
     """
 
     if shutil.which('arangorestore') is None:
-        raise ArangoDumpNotInstalled()
+        raise PackageMissing('arangorestore')
+    if PostgresOptimizer.db_host and shutil.wich('pg_restore' is None):
+        raise PackageMissing('pg_restore')
     command = """arangorestore --server.endpoint tcp://{}:{} \
             --server.username {} \
             --server.password {} \
@@ -176,4 +196,17 @@ def snapshot_restore(
             )
     r = os.system(command)
     if r != 0:
-        raise ArangoDumpFailed('arangorestore exit with a non-zero status')
+        raise DumpFailed('arangorestore exit with a non-zero status')
+    if PostgresOptimizer.db_host:
+        pg_command = """pg_restore --dbname=postgresql://%s:%s@%s:%s/%s %s/pg_dump.tgz"""
+        pg_command = pg_command % (
+            PostgresOptimizer.db_user,
+            PostgresOptimizer.db_pass,
+            PostgresOptimizer.db_host,
+            PostgresOptimizer.db_port,
+            PostgresOptimizer.db_name,
+            input_dir
+        )
+        r = os.system(pg_command)
+        if r != 0:
+            raise DumpFailed('pg_restore exit with a non-zero status')
